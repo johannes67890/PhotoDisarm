@@ -36,16 +36,9 @@ if __name__ == '__main__':
     ap.add_argument("-t", "--threshold", type=float, default=150.0, help="focus measures that fall below this value will be considered 'blurry'")
     ap.add_argument("--format", type=str, default="png", choices=["png", "jpg"], help="desired output image format")
     ap.add_argument("--max-width", type=int, default=1720, help="maximum width of the displayed image")
-    ap.add_argument("--max-height", type=int, default=1200, help="maximum height of the displayed image")
+    ap.add_argument("--max-height", type=int, default=1100, help="maximum height of the displayed image")
     ap.add_argument("--chunk-size", type=int, default=15, help="number of images to process at a time")
     args = vars(ap.parse_args())
-
-    # Create directories to save images if they don't exist
-    saved_dir = "saved_images"
-    os.makedirs(saved_dir, exist_ok=True)
-
-    delete_dir = "deleted_images"
-    os.makedirs(delete_dir, exist_ok=True)
 
     # List images
     image_paths = util.sort_images_by_date(list_images(args["images"]))
@@ -56,6 +49,8 @@ if __name__ == '__main__':
     # Load the first chunk of images
     load_next_chunk(image_paths, args["chunk_size"], current_index, result_list, args["format"], args["threshold"], args["max_width"], args["max_height"])
 
+    delete_dir = "deleted_images"
+    os.makedirs(delete_dir, exist_ok=True)
 
     # Create a window with a fixed size
     cv2.namedWindow("Image", cv2.WINDOW_NORMAL)
@@ -89,11 +84,7 @@ if __name__ == '__main__':
             # If 'space' (key 32) was pressed, save the image
             if key == 32:
                 print("Saving image")
-                # Move the image to the 'saved_images' directory
-                image_name = os.path.basename(image_path)
-                new_path = os.path.join(saved_dir, image_name)
-                shutil.move(image_path, new_path)
-                print(f"Image moved to: {new_path}")
+                util.move_image_to_dir_with_date(image_path)
 
             # If 'backspace' (key 8) was pressed, delete the image
             if key == 8:
