@@ -6,7 +6,7 @@ from glob import glob
 import dub as dup
 import util as util
 
-def get_images(directory, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef"), move_duplicates=False) -> list:
+def get_images(directory, move_duplicates, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef")) -> list:
     image_paths = []
     for ext in valid_exts:
         image_paths.extend(glob(os.path.join(directory, f"*{ext}"), recursive=True))

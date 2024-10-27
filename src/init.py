@@ -2,110 +2,140 @@ import cv2
 import rawpy
 import numpy as np
 import os
-import argparse
+import shutil
+import threading
 from glob import glob
 from multiprocessing import Pool, cpu_count
-import shutil  # For moving files
+import tkinter as tk
+from tkinter import filedialog, messagebox
+
+# Import your other modules
 import dub
 import blurry
 import util
-import threading
 import canvas
 
-
-def load_next_chunk(image_paths, chunk_size, current_index, result_list: list, threshold, max_width, max_height):
-    # Load the next chunk of images in a separate thread
-
+def load_next_chunk(image_paths, chunk_size, current_index, result_list, threshold, max_width, max_height):
     next_chunk = image_paths[current_index:current_index + chunk_size]
     
+    # Initialize Pool here, as long as it's outside the main tkinter GUI thread
     with Pool(processes=cpu_count()) as pool:
-            results = pool.starmap(blurry.process_image, [(imagePath, threshold, max_width, max_height) for imagePath in next_chunk])
-
+        results = pool.starmap(blurry.process_image, [(imagePath, threshold, max_width, max_height) for imagePath in next_chunk])
 
     result_list.clear()
     result_list.extend(results)
 
-if __name__ == '__main__':
-    # Parse arguments
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", required=True, help="path to input directory of images", type=str)
-    ap.add_argument("-t", "--threshold", type=float, default=150.0, help="focus measures that fall below this value will be considered 'blurry'")
-    ap.add_argument("-d", "--move-duplicates", default=True, action="store_true", help="move duplicate images to a 'duplicates' directory")
-    ap.add_argument("--max-width", type=int, default=1720, help="maximum width of the displayed image")
-    ap.add_argument("--max-height", type=int, default=1000, help="maximum height of the displayed image")
-    ap.add_argument("--chunk-size", type=int, default=15, help="number of images to process at a time")
-    args = vars(ap.parse_args())
+def process_images(image_paths, threshold, chunk_size, max_width, max_height, move_duplicates):
+    result_list = []
+    current_index = 0
 
-    # List images
-    image_paths = util.get_images(args["input"], move_duplicates=args["move_duplicates"])
+    load_next_chunk(image_paths, chunk_size, current_index, result_list, threshold, max_width, max_height)
 
-    result_list = []  # To store processed images
-
-    current_index = 0  # To keep track of the current index in image_paths
-    # Load the first chunk of images
-    load_next_chunk(image_paths, args["chunk_size"], current_index, result_list, args["threshold"], args["max_width"], args["max_height"])
-
-     # Start a background thread to preload the next chunks
-    preload_thread = threading.Thread(target=load_next_chunk, args=(image_paths, args["chunk_size"], current_index + args["chunk_size"], result_list, args["threshold"], args["max_width"], args["max_height"]))
+    preload_thread = threading.Thread(target=load_next_chunk, args=(image_paths, chunk_size, current_index + chunk_size, result_list, threshold, max_width, max_height))
     preload_thread.start()
 
     delete_dir = "deleted_images"
     os.makedirs(delete_dir, exist_ok=True)
 
-    # Create a window with a fixed size
     cv2.namedWindow("Image", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("Image", args["max_width"], args["max_height"])
+    cv2.resizeWindow("Image", max_width, max_height)
 
-    # Process and display images
     while current_index < len(image_paths):
-        # Display each image in the result_list one by one
         for idx, (resized_image, fm, text) in enumerate(result_list):
             if resized_image is None:
-                continue  # Skip if image processing failed
+                continue
 
-            # Get the corresponding image path for saving/deleting
             image_path = image_paths[current_index + idx]
-
-            # Add the date to the image
             date = util.get_image_metadata_date(image_path)
             (text_width, text_height), baseline = cv2.getTextSize(date, cv2.FONT_ITALIC, 0.8, 2)
-            text_x = 10  # Padding from left
-            text_y = resized_image.shape[0] - 10  # Padding from bottom
+            text_x = 10
+            text_y = resized_image.shape[0] - 10
             cv2.rectangle(resized_image, (text_x - 5, text_y - text_height - baseline), (text_x + text_width + 5, text_y + 5), (255, 255, 255), -1)
             cv2.putText(resized_image, f"{date}", (text_x, text_y), cv2.FONT_ITALIC, 0.8, (0, 0, 0), 2)
 
             cv2.imshow("Image", resized_image)
-
-            # Wait for user to press a key to go to the next image
             key = cv2.waitKeyEx(0)
 
-
-            # If 'space' (key 32) was pressed, save the image
-            if key == 32:
+            if key == 32:  # Space key
                 util.move_image_to_dir_with_date(image_path)
-
-            # If 'backspace' (key 8) was pressed, delete the image
-            if key == 8:
-                # Move the image to the 'deleted_images' directory
+            elif key == 8:  # Backspace key
                 image_name = os.path.basename(image_path)
                 new_path = os.path.join(delete_dir, image_name)
                 shutil.move(image_path, new_path)
-
-            # If 'Esc' (key 27) was pressed, exit early
-            if key == 27:
+            elif key == 27:  # Esc key
                 break
 
-            # Start loading the next chunk if we are on the third last image or lower
-            if idx >= len(result_list) - 1 and current_index + args["chunk_size"] < len(image_paths):
-                current_index += args["chunk_size"]  # Move to the next chunk index
-                load_next_chunk(image_paths, args["chunk_size"], current_index, result_list, args["threshold"], args["max_width"], args["max_height"])
-                break  # Break out of the inner loop to load the next chunk
+            if idx >= len(result_list) - 1 and current_index + chunk_size < len(image_paths):
+                current_index += chunk_size
+                load_next_chunk(image_paths, chunk_size, current_index, result_list, threshold, max_width, max_height)
+                break
 
-        # Break if 'Esc' was pressed
         if key == 27:
             break
 
-    # Close all OpenCV windows
     cv2.destroyAllWindows()
 
+def start_processing():
+    input_dir = input_path.get()
+    threshold = float(threshold_entry.get())
+    chunk_size = int(chunk_size_entry.get())
+    max_width = int(width_entry.get())
+    max_height = int(height_entry.get())
+    move_duplicates = bool(move_duplicates_entry.get())
 
+    if not os.path.isdir(input_dir):
+        messagebox.showerror("Error", "Invalid directory path!")
+        return
+
+    # Close the main tkinter window after gathering all inputs
+    root.destroy()  # Close the window after getting the inputs
+    
+    image_paths = util.get_images(input_dir, move_duplicates=move_duplicates)
+
+    # Directly call process_images on the main thread
+    process_images(image_paths, threshold, chunk_size, max_width, max_height, move_duplicates)
+
+if __name__ == "__main__":
+    # Setting up the GUI
+    root = tk.Tk()
+    root.title("Image Processing Interface")
+
+    # Input Directory
+    input_path = tk.StringVar()
+    tk.Label(root, text="Input Directory").grid(row=0, column=0, sticky=tk.W)
+    tk.Entry(root, textvariable=input_path, width=50).grid(row=0, column=1)
+    tk.Button(root, text="Browse", command=lambda: input_path.set(filedialog.askdirectory())).grid(row=0, column=2)
+
+    # Threshold
+    tk.Label(root, text="Threshold").grid(row=1, column=0, sticky=tk.W)
+    threshold_entry = tk.Entry(root)
+    threshold_entry.insert(0, "150.0")
+    threshold_entry.grid(row=1, column=1)
+
+    # Chunk Size
+    tk.Label(root, text="Chunk Size").grid(row=2, column=0, sticky=tk.W)
+    chunk_size_entry = tk.Entry(root)
+    chunk_size_entry.insert(0, "15")
+    chunk_size_entry.grid(row=2, column=1)
+
+    # Max Width
+    tk.Label(root, text="Max Width").grid(row=3, column=0, sticky=tk.W)
+    width_entry = tk.Entry(root)
+    width_entry.insert(0, "1720")
+    width_entry.grid(row=3, column=1)
+
+    # Max Height
+    tk.Label(root, text="Max Height").grid(row=4, column=0, sticky=tk.W)
+    height_entry = tk.Entry(root)
+    height_entry.insert(0, "1000")
+    height_entry.grid(row=4, column=1)
+
+    # Move Duplicates Checkbox
+    move_duplicates_entry = tk.IntVar()
+    move_duplicates_entry.set(True)
+    tk.Checkbutton(root, text="Move Duplicates", variable=move_duplicates_entry).grid(row=5, column=1)
+
+    # Start Button
+    tk.Button(root, text="Start Processing", command=start_processing).grid(row=6, column=1)
+
+    root.mainloop()
