@@ -70,7 +70,7 @@ def process_images(image_paths, threshold, chunk_size, max_width, max_height, mo
                 load_next_chunk(image_paths, chunk_size, current_index, result_list, threshold, max_width, max_height)
                 break
 
-        if key == 27:
+        if key == 27 or key == -1:  # Esc key or close window
             break
 
     cv2.destroyAllWindows()
