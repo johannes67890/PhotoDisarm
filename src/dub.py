@@ -1,25 +1,32 @@
 from PIL import Image
 import hashlib
-import shutil  # For moving files
+import shutil
 import os
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
+
+def hash_image(image_path):
+    with Image.open(image_path) as img:
+        # Only hash part of the image if speed > exactness
+        return hashlib.md5(img.tobytes()).hexdigest()
 
 def add(image_paths: list):
     dupSet = set()
     newList = []
-    for image_path in image_paths:
-        md5hash = hashlib.md5(Image.open(image_path).tobytes())
-
-        if md5hash.hexdigest() in dupSet:
-            if os.path.exists("duplicates"):
-                shutil.move(image_path, "duplicates")
+    
+    # Ensure the duplicates directory exists once
+    duplicates_dir = "duplicates"
+    os.makedirs(duplicates_dir, exist_ok=True)
+    
+    print("Checking & moveing duplicates... \n")
+    with ThreadPoolExecutor() as executor:
+        for image_path, md5hash in tqdm(zip(image_paths, executor.map(hash_image, image_paths)), total=len(image_paths)):
+            if md5hash in dupSet:
+                shutil.move(image_path, duplicates_dir)
             else:
-                os.makedirs("duplicates", exist_ok=True)
-                shutil.move(image_path, "duplicates")
-            continue
-        else:
-            dupSet.add(md5hash.hexdigest())
-            newList.append(image_path)
+                dupSet.add(md5hash)
+                newList.append(image_path)
+    
+    print(f"\n{len(image_paths) - len(newList)} duplicates found and moved to {duplicates_dir}")
     return newList
-            
-        
 

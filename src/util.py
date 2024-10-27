@@ -2,6 +2,19 @@ import os
 from PIL import Image, ExifTags
 from datetime import datetime
 import shutil
+from glob import glob
+import dub as dup
+import util as util
+
+def get_images(directory, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef"), move_duplicates=False) -> list:
+    image_paths = []
+    for ext in valid_exts:
+        image_paths.extend(glob(os.path.join(directory, f"*{ext}"), recursive=True))
+
+    if move_duplicates:
+        image_paths = dup.add(image_paths)
+
+    return util.sort_images_by_date(image_paths)
 
 def get_image_metadata_date(image_path) -> str:
     # Open the image file
@@ -32,3 +45,5 @@ def move_image_to_dir_with_date(image_path):
     if not os.path.exists(new_path):
         os.makedirs(new_path, exist_ok=True)
     shutil.move(image_path, new_path)
+
+

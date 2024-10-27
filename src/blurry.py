@@ -5,15 +5,12 @@ import os
 import argparse
 from glob import glob
 from multiprocessing import Pool, cpu_count
-import shutil  # For moving files
-import dub
-import threading
 import canvas
 def variance_of_laplacian(image):
     return cv2.Laplacian(image, cv2.CV_64F).var()
 
 
-def process_image(imagePath, output_format, threshold, max_width, max_height):
+def process_image(imagePath, threshold, max_width, max_height):
     try:
         # Process NEF files with rawpy, others with OpenCV
         if imagePath.lower().endswith('.nef'):
