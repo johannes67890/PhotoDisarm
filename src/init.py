@@ -83,6 +83,7 @@ def start_processing():
     max_height = int(height_entry.get())
     move_duplicates = bool(move_duplicates_entry.get())
 
+
     if not os.path.isdir(input_dir):
         messagebox.showerror("Error", "Invalid directory path!")
         return
@@ -96,46 +97,54 @@ def start_processing():
     process_images(image_paths, threshold, chunk_size, max_width, max_height, move_duplicates)
 
 if __name__ == "__main__":
+   
     # Setting up the GUI
     root = tk.Tk()
     root.title("Image Processing Interface")
+    util.center_window(root, width=500, height=300)  # Adjust size as needed
+
+    # Configure the grid to center content horizontally
+    root.columnconfigure(0, weight=1)
+    root.columnconfigure(1, weight=1)
+    root.columnconfigure(2, weight=1)
 
     # Input Directory
     input_path = tk.StringVar()
-    tk.Label(root, text="Input Directory").grid(row=0, column=0, sticky=tk.W)
-    tk.Entry(root, textvariable=input_path, width=50).grid(row=0, column=1)
-    tk.Button(root, text="Browse", command=lambda: input_path.set(filedialog.askdirectory())).grid(row=0, column=2)
+    tk.Label(root, text="Input Directory").grid(row=0, column=0, columnspan=2, sticky="e", padx=5, pady=5)
+    tk.Entry(root, textvariable=input_path, width=50).grid(row=0, column=1, columnspan=2, sticky="w", padx=5)
+    input_path.set(os.getcwd())
+    tk.Button(root, text="Browse", command=lambda: input_path.set(filedialog.askdirectory())).grid(row=0, column=3, sticky="w", padx=5)
 
     # Threshold
-    tk.Label(root, text="Threshold").grid(row=1, column=0, sticky=tk.W)
+    tk.Label(root, text="Threshold").grid(row=1, column=0, columnspan=2, sticky="e", padx=5, pady=5)
     threshold_entry = tk.Entry(root)
     threshold_entry.insert(0, "150.0")
-    threshold_entry.grid(row=1, column=1)
+    threshold_entry.grid(row=1, column=1, columnspan=2, sticky="w", padx=5)
 
     # Chunk Size
-    tk.Label(root, text="Chunk Size").grid(row=2, column=0, sticky=tk.W)
+    tk.Label(root, text="Chunk Size").grid(row=2, column=0, columnspan=2, sticky="e", padx=5, pady=5)
     chunk_size_entry = tk.Entry(root)
     chunk_size_entry.insert(0, "15")
-    chunk_size_entry.grid(row=2, column=1)
+    chunk_size_entry.grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
 
     # Max Width
-    tk.Label(root, text="Max Width").grid(row=3, column=0, sticky=tk.W)
+    tk.Label(root, text="Max Width").grid(row=3, column=0, columnspan=2, sticky="e", padx=5, pady=5)
     width_entry = tk.Entry(root)
     width_entry.insert(0, "1720")
-    width_entry.grid(row=3, column=1)
+    width_entry.grid(row=3, column=1, columnspan=2, sticky="w", padx=5)
 
     # Max Height
-    tk.Label(root, text="Max Height").grid(row=4, column=0, sticky=tk.W)
+    tk.Label(root, text="Max Height").grid(row=4, column=0, columnspan=2, sticky="e", padx=5, pady=5)
     height_entry = tk.Entry(root)
     height_entry.insert(0, "1000")
-    height_entry.grid(row=4, column=1)
+    height_entry.grid(row=4, column=1, columnspan=2, sticky="w", padx=5)
 
     # Move Duplicates Checkbox
     move_duplicates_entry = tk.IntVar()
     move_duplicates_entry.set(True)
-    tk.Checkbutton(root, text="Move Duplicates", variable=move_duplicates_entry).grid(row=5, column=1)
+    tk.Checkbutton(root, text="Move Duplicates", variable=move_duplicates_entry).grid(row=5, column=1, columnspan=2, sticky="w", padx=5, pady=5)
 
     # Start Button
-    tk.Button(root, text="Start Processing", command=start_processing).grid(row=6, column=1)
+    tk.Button(root, text="Start Processing", command=lambda: start_processing()).grid(row=6, column=1, columnspan=2, pady=10)
 
     root.mainloop()

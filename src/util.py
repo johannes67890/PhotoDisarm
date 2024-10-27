@@ -5,6 +5,7 @@ import shutil
 from glob import glob
 import dub as dup
 import util as util
+import tkinter as tk
 
 def get_images(directory, move_duplicates, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef")) -> list:
     image_paths = []
@@ -12,7 +13,7 @@ def get_images(directory, move_duplicates, valid_exts=(".jpg", ".jpeg", ".png", 
         image_paths.extend(glob(os.path.join(directory, f"*{ext}"), recursive=True))
 
     if move_duplicates:
-        image_paths = dup.add(image_paths)
+        image_paths = dup.add_with_progress(image_paths)
 
     return util.sort_images_by_date(image_paths)
 
@@ -47,3 +48,9 @@ def move_image_to_dir_with_date(image_path):
     shutil.move(image_path, new_path)
 
 
+def center_window(window: tk.Tk, width=500, height=250):
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+    x = (screen_width - width) // 2
+    y = (screen_height - height) // 2
+    window.geometry(f"{width}x{height}+{x}+{y}")
