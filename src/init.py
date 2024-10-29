@@ -8,76 +8,81 @@ from glob import glob
 from multiprocessing import Pool, cpu_count
 import tkinter as tk
 from tkinter import filedialog, messagebox
+from collections import deque
 
 # Import your other modules
 import dub
 import blurry
 import util
 import canvas
+import asyncio
+async def load_next_chunk(images: list, index: int, chunk_size: int, max_width: int, max_height: int):
+    next_chunk = images[index:index + chunk_size]
 
-def load_next_chunk(image_paths, chunk_size, current_index, result_list, threshold, max_width, max_height):
-    next_chunk = image_paths[current_index:current_index + chunk_size]
-    
-    # Initialize Pool here, as long as it's outside the main tkinter GUI thread
     with Pool(processes=cpu_count()) as pool:
-        results = pool.starmap(blurry.process_image, [(imagePath, threshold, max_width, max_height) for imagePath in next_chunk])
+        # Pass each image path as a tuple to pool.starmap()
+        image = pool.starmap(blurry.process_image, [(imagePath, 150, max_width, max_height) for imagePath in next_chunk])
 
-    result_list.clear()
-    result_list.extend(results)
+    return image
 
-def process_images(image_paths, threshold, chunk_size, max_width, max_height, move_duplicates):
-    result_list = []
-    current_index = 0
 
-    load_next_chunk(image_paths, chunk_size, current_index, result_list, threshold, max_width, max_height)
 
-    preload_thread = threading.Thread(target=load_next_chunk, args=(image_paths, chunk_size, current_index + chunk_size, result_list, threshold, max_width, max_height))
-    preload_thread.start()
-
-    delete_dir = "deleted_images"
-    os.makedirs(delete_dir, exist_ok=True)
+async def process_images(images: list, chunk_size: int, max_width: int, max_height: int, move_duplicates: bool):
+    index: int = 0
+    preview: bool = False
+    container = []
+    queue = deque(maxlen=7)
 
     cv2.namedWindow("Image", cv2.WINDOW_NORMAL)
     cv2.resizeWindow("Image", max_width, max_height)
+    while index < len(images):
+        print(index, "===", len(images) )
+        if index % chunk_size == 0:
+            container = await load_next_chunk(images, index, chunk_size, max_width, max_height)
 
-    while current_index < len(image_paths):
-        for idx, (resized_image, fm, text) in enumerate(result_list):
-            if resized_image is None:
-                continue
-
-            image_path = image_paths[current_index + idx]
-            date = util.get_image_metadata_date(image_path)
-            (text_width, text_height), baseline = cv2.getTextSize(date, cv2.FONT_ITALIC, 0.8, 2)
-            text_x = 10
-            text_y = resized_image.shape[0] - 10
-            cv2.rectangle(resized_image, (text_x - 5, text_y - text_height - baseline), (text_x + text_width + 5, text_y + 5), (255, 255, 255), -1)
-            cv2.putText(resized_image, f"{date}", (text_x, text_y), cv2.FONT_ITALIC, 0.8, (0, 0, 0), 2)
-
-            cv2.imshow("Image", resized_image)
+        for (i, (imagePath, imageData)) in enumerate(container):
+            cv2.imshow("Image", imageData)
+            
             key = cv2.waitKeyEx(0)
-
+            print(key)
             if key == 32:  # Space key
-                util.move_image_to_dir_with_date(image_path)
+                imagePath = util.move_image_to_dir_with_date(imagePath)
             elif key == 8:  # Backspace key
-                image_name = os.path.basename(image_path)
-                new_path = os.path.join(delete_dir, image_name)
-                shutil.move(image_path, new_path)
-            elif key == 27:  # Esc key
+                # image_name = os.path.basename(imagePath)
+                # new_path = os.path.join("Deleted", image_name)
+                # shutil.move(imagePath, new_path)
+                print("delete Unimplemented")
+            elif key == 2555904: # Right arrow key
+                print(i)
+                print(container.index((imagePath, imageData)))
+                (imagePath, imageData) = queue[0]
+                cv2.imshow("Image", imageData)
+
+
+            elif key == 2424832: # Left Arrow key
+                print("delete Unimplemented")
+                cv2.imshow("Image", container.index((imagePath, imageData)) - 1)
+
+            elif key == 27 or key == -1:  # Esc key
+                cv2.destroyAllWindows()
+                container.clear()
+                return
+            else:
                 break
 
-            if idx >= len(result_list) - 1 and current_index + chunk_size < len(image_paths):
-                current_index += chunk_size
-                load_next_chunk(image_paths, chunk_size, current_index, result_list, threshold, max_width, max_height)
-                break
+            if len(queue) < queue.maxlen:
+                queue.append((imagePath, imageData))
+            else:
+                queue.popleft()
+                queue.append((imagePath, imageData))
 
-        if key == 27 or key == -1:  # Esc key or close window
-            break
+            index += 1  # Move to the next image
 
     cv2.destroyAllWindows()
 
+
 def start_processing():
     input_dir = input_path.get()
-    threshold = float(threshold_entry.get())
     chunk_size = int(chunk_size_entry.get())
     max_width = int(width_entry.get())
     max_height = int(height_entry.get())
@@ -94,7 +99,7 @@ def start_processing():
     image_paths = util.get_images(input_dir, move_duplicates=move_duplicates)
 
     # Directly call process_images on the main thread
-    process_images(image_paths, threshold, chunk_size, max_width, max_height, move_duplicates)
+    asyncio.run(process_images(image_paths, chunk_size, max_width, max_height, move_duplicates))
 
 if __name__ == "__main__":
    
@@ -113,7 +118,8 @@ if __name__ == "__main__":
     tk.Label(root, text="Input Directory").grid(row=0, column=0, columnspan=2, sticky="e", padx=5, pady=5)
     tk.Entry(root, textvariable=input_path, width=50).grid(row=0, column=1, columnspan=2, sticky="w", padx=5)
     input_path.set(os.getcwd())
-    tk.Button(root, text="Browse", command=lambda: input_path.set(filedialog.askdirectory())).grid(row=0, column=3, sticky="w", padx=5)
+    # tk.Button(root, text="Browse", command=lambda: input_path.set(filedialog.askdirectory())).grid(row=0, column=3, sticky="w", padx=5)
+    tk.Button(root, text="Browse", command=lambda: input_path.set("C:/Users/johan/scripts/img")).grid(row=0, column=3, sticky="w", padx=5)
 
     # Threshold
     tk.Label(root, text="Threshold").grid(row=1, column=0, columnspan=2, sticky="e", padx=5, pady=5)
@@ -124,7 +130,7 @@ if __name__ == "__main__":
     # Chunk Size
     tk.Label(root, text="Chunk Size").grid(row=2, column=0, columnspan=2, sticky="e", padx=5, pady=5)
     chunk_size_entry = tk.Entry(root)
-    chunk_size_entry.insert(0, "15")
+    chunk_size_entry.insert(0, "5")
     chunk_size_entry.grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
 
     # Max Width
