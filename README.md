@@ -4,5 +4,5 @@
 run:
 
 ```bash
-poetry run python .
+poetry run python photodisarm
 ```
