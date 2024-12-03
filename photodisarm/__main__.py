@@ -35,52 +35,45 @@ async def process_images(images: list, chunk_size: int, max_width: int, max_heig
 
     cv2.namedWindow("Image", cv2.WINDOW_NORMAL)
     cv2.resizeWindow("Image", max_width, max_height)
-    while index < len(images):
-        print(index, "===", len(images) )
-        if index % chunk_size == 0:
-            container = await load_next_chunk(images, index, chunk_size, max_width, max_height)
+    while True:
+        # Break if all images have been processed
+        if index >= len(images):
+            break
 
-        for (i, (imagePath, imageData)) in enumerate(container):
-            cv2.imshow("Image", imageData)
-            
-            key = cv2.waitKeyEx(0)
-            print(key)
-            if key == 32:  # Space key
-                print(imagePath)
-                imagePath = util.move_image_to_dir_with_date(imagePath)
-            elif key == 8:  # Backspace key
-                # image_name = os.path.basename(imagePath)
-                # new_path = os.path.join("Deleted", image_name)
-                # shutil.move(imagePath, new_path)
-                print("delete Unimplemented")
-            elif key == 2555904: # Right arrow key
-                print(i)
-                print(container.index((imagePath, imageData)))
-                (imagePath, imageData) = queue[0]
-                cv2.imshow("Image", imageData)
+        # if index % chunk_size == 0:
+        #    container = await load_next_chunk(images, index, chunk_size, max_width, max_height)
+        imagePath = images[index]
+        print(imagePath)
+        _, imageData =  blurry.process_image(imagePath, 150, max_width, max_height)
+
+        cv2.imshow("Image", imageData)
 
 
-            elif key == 2424832: # Left Arrow key
-                print("delete Unimplemented")
-                cv2.imshow("Image", container.index((imagePath, imageData)) - 1)
-
-            elif key == 27 or key == -1:  # Esc key
-                cv2.destroyAllWindows()
-                container.clear()
-                return
-            else:
-                break
-
-            if len(queue) < queue.maxlen:
-                queue.append((imagePath, imageData))
-            else:
-                queue.popleft()
-                queue.append((imagePath, imageData))
-
-            index += 1  # Move to the next image
-
+        key = cv2.waitKey(0)
+        print(key)
+        if key == 32:  # Space key
+            imagePath = util.move_image_to_dir_with_date(imagePath)
+            images[index] = imagePath
+        elif key == 8:  # Backspace key (delete)
+            # image_name = os.path.basename(imagePath)
+            # new_path = os.path.join("Deleted", image_name)
+            # shutil.move(imagePath, new_path)
+            print("delete Unimplemented")
+        elif key == 83: # Right arrow key
+            index += 1
+        elif key == 81: # Left Arrow key
+            if index-1 >= 0:
+                index -= 1
+        elif key == 27 or key == -1:  # Esc key
+            cv2.destroyAllWindows()
+            container.clear()
+            return
+        if len(queue) < queue.maxlen:
+            queue.append((imagePath, imageData))
+        else:
+            queue.popleft()
+            queue.append((imagePath, imageData))
     cv2.destroyAllWindows()
-
 
 def start_processing():
     input_dir = input_path.get()

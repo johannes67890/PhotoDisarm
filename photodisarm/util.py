@@ -62,8 +62,8 @@ def move_image_to_dir_with_date(image_path) -> str:
     if not os.path.exists(new_path):
         os.makedirs(new_path, exist_ok=True)
     shutil.move(image_path, new_path)
-
-    return new_path
+    
+    return os.path.join(new_path, os.path.basename(image_path))
 
 
 def center_window(window: tk.Tk, width=500, height=250):
