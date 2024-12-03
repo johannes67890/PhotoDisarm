@@ -46,6 +46,7 @@ async def process_images(images: list, chunk_size: int, max_width: int, max_heig
             key = cv2.waitKeyEx(0)
             print(key)
             if key == 32:  # Space key
+                print(imagePath)
                 imagePath = util.move_image_to_dir_with_date(imagePath)
             elif key == 8:  # Backspace key
                 # image_name = os.path.basename(imagePath)
@@ -119,7 +120,7 @@ if __name__ == "__main__":
     tk.Entry(root, textvariable=input_path, width=50).grid(row=0, column=1, columnspan=2, sticky="w", padx=5)
     input_path.set(os.getcwd())
     # tk.Button(root, text="Browse", command=lambda: input_path.set(filedialog.askdirectory())).grid(row=0, column=3, sticky="w", padx=5)
-    tk.Button(root, text="Browse", command=lambda: input_path.set("pics")).grid(row=0, column=3, sticky="w", padx=5)
+    tk.Button(root, text="Browse", command=lambda: input_path.set("/home/johannes/repos/PhotoDisarm/pics")).grid(row=0, column=3, sticky="w", padx=5)
 
     # Threshold
     tk.Label(root, text="Threshold").grid(row=1, column=0, columnspan=2, sticky="e", padx=5, pady=5)
