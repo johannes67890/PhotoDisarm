@@ -13,7 +13,7 @@ from . import dub
 from . import blurry
 from . import util
 
-async def process_images(image_paths: list, max_width: int, max_height: int, chunk_size: int = 25):
+async def process_images(image_paths: list, max_width: int, max_height: int, chunk_size: int = 50):
     """
     Process images in chunks to reduce memory usage.
     
@@ -34,8 +34,18 @@ async def process_images(image_paths: list, max_width: int, max_height: int, chu
         # Calculate the end index for current chunk
         chunk_end = min(index + chunk_size, total_images)
         
+        # Extract current chunk of image paths
+        chunk_paths = image_paths[index:chunk_end]
+        
+        # Sort this chunk by date
+        chunk_paths = util.sort_images_by_date(chunk_paths)
+        
+        # Update the original list with the sorted chunk
+        image_paths[index:chunk_end] = chunk_paths
+        
         # Load current chunk of images
         print(f"Loading chunk {index//chunk_size + 1}/{(total_images + chunk_size - 1)//chunk_size} ({chunk_end - index} images)")
+        print(f"Sorted by date: {', '.join([os.path.basename(p) for p in chunk_paths])}")
         
         # Process the current chunk
         current_chunk_index = 0
@@ -52,11 +62,17 @@ async def process_images(image_paths: list, max_width: int, max_height: int, chu
                 current_chunk_index += 1
                 continue
                 
-            # Display info about current position
+            # Display info about current position and date
             status_image = imageData.copy()
+            
+            # Try to get the image date
+            image_date = util.get_image_metadata_date(imagePath)
+            date_info = f" - {image_date}" if image_date else "*No Date Found*"
+            
+            # Display position info
             cv2.putText(
                 status_image, 
-                f"Image {current_index + 1}/{total_images}",
+                f"Image {current_index + 1}/{total_images}{date_info}",
                 (10, max_height - 20),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
             )
@@ -78,7 +94,6 @@ async def process_images(image_paths: list, max_width: int, max_height: int, chu
             elif key == 27 or key == -1:  # Esc key
                 cv2.destroyAllWindows()
                 return
-
             else:
                 # For any other key, move to next image
                 current_chunk_index += 1
@@ -87,8 +102,9 @@ async def process_images(image_paths: list, max_width: int, max_height: int, chu
         index = chunk_end
     
     # All chunks processed
+    messagebox.showinfo("Done!", "All images processed!")
+
     cv2.destroyAllWindows()
-    print("All images processed.")
 
 # Update the start_processing function to pass the chunk size
 def start_processing():
