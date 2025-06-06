@@ -6,16 +6,39 @@ from glob import glob
 from . import dub as dup
 import tkinter as tk
 import cv2
+from glob import glob
 
-def get_images(directory, move_duplicates, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef")) -> list:
+
+def get_images(directory, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef")) -> list:
     image_paths = []
     for ext in valid_exts:
         image_paths.extend(glob(os.path.join(directory, f"*{ext}"), recursive=True))
 
-    if move_duplicates:
-        image_paths = dup.add_with_progress(image_paths)
+    return image_paths
 
-    return sort_images_by_date(image_paths)
+def get_images_rec(directory, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef")) -> list:
+    """
+    Recursively get all image files from a directory and its subdirectories.
+    
+    Args:
+        directory: Root directory to search
+        valid_exts: Tuple of valid file extensions to include
+        
+    Returns:
+        List of image paths sorted by creation date
+    """
+    image_paths = []
+    
+    # Walk through all directories and subdirectories
+    for root, _, files in os.walk(directory):
+        for file in files:
+            # Check if the file has a valid extension
+            if any(file.lower().endswith(ext) for ext in valid_exts):
+                full_path = os.path.join(root, file)
+                image_paths.append(full_path)
+    
+    print(f"Found {len(image_paths)} images recursively in {directory}")
+    return image_paths
 
 def get_image_metadata_date(image_path):
     # Open the image file
@@ -35,7 +58,7 @@ def get_image_metadata_date(image_path):
                 
 
 def printDateOnWindow(image):
-    date = util.get_image_metadata_date(image)
+    date = get_image_metadata_date(image)
     if date is None:
         return
     (text_width, text_height), baseline = cv2.getTextSize(date, cv2.FONT_ITALIC, 0.8, 2)
