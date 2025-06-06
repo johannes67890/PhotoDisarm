@@ -1,0 +1,1 @@
+import photodisarm.__main__

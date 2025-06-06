@@ -6,12 +6,14 @@ authors = ["johannes67890 <johannes@orager.dk>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.12,<3.14"  # Change this line to be compatible with PyInstaller
 opencv-python = "^4.10.0.84"
 rawpy = "^0.25.0"
 numpy = "^2.1.3"
 pillow = "^11.0.0"
 
+[tool.poetry.group.dev.dependencies]
+pyinstaller = "^6.14.0"  # Add PyInstaller as a dev dependency
 
 [build-system]
 requires = ["poetry-core"]
