@@ -7,38 +7,61 @@ from . import dub as dup
 import tkinter as tk
 import cv2
 from glob import glob
+from pathlib import Path
 
 
-def get_images(directory, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef")) -> list:
-    image_paths = []
-    for ext in valid_exts:
-        image_paths.extend(glob(os.path.join(directory, f"*{ext}"), recursive=True))
-
-    return image_paths
-
-def get_images_rec(directory, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef")) -> list:
+# If you want an even more memory-efficient approach using generators:
+def get_images(directory, chunk_size=25, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef")):
     """
-    Recursively get all image files from a directory and its subdirectories.
+    Get images from a directory in chunks to balance memory usage and processing efficiency.
     
     Args:
-        directory: Root directory to search
+        directory: Directory to search
+        chunk_size: Number of image paths to yield at once
         valid_exts: Tuple of valid file extensions to include
         
     Returns:
-        List of image paths sorted by creation date
+        Generator yielding chunks of image paths
     """
-    image_paths = []
+    directory_path = Path(directory)
+    chunk = []
     
-    # Walk through all directories and subdirectories
-    for root, _, files in os.walk(directory):
-        for file in files:
-            # Check if the file has a valid extension
-            if any(file.lower().endswith(ext) for ext in valid_exts):
-                full_path = os.path.join(root, file)
-                image_paths.append(full_path)
+    for ext in valid_exts:
+        for path in directory_path.glob(f"*{ext}"):
+            chunk.append(str(path))
+            if len(chunk) >= chunk_size:
+                yield chunk
+                chunk = []
     
-    print(f"Found {len(image_paths)} images recursively in {directory}")
-    return image_paths
+    # Yield any remaining images
+    if chunk:
+        yield chunk
+
+def get_images_rec(directory, chunk_size=25, valid_exts=(".jpg", ".jpeg", ".png", ".bmp", ".nef")):
+    """
+    Recursively get all image files from a directory and its subdirectories in chunks.
+    
+    Args:
+        directory: Root directory to search
+        chunk_size: Number of image paths to yield at once
+        valid_exts: Tuple of valid file extensions to include
+        
+    Returns:
+        Generator yielding chunks of image paths from recursive search
+    """
+    directory_path = Path(directory)
+    chunk = []
+    
+    for ext in valid_exts:
+        for path in directory_path.rglob(f"*{ext}"):
+            chunk.append(str(path))
+            if len(chunk) >= chunk_size:
+                yield chunk
+                chunk = []
+    
+    # Yield any remaining images
+    if chunk:
+        yield chunk
 
 def get_image_metadata_date(image_path):
     # Open the image file

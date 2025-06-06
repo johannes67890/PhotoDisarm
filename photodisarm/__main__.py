@@ -44,30 +44,38 @@ async def process_images(images: list, max_width: int, max_height: int):
 
 def start_processing():
     input_dir = input_path.get()
-    chunk_size = int(chunk_size_entry.get())
     max_width = int(width_entry.get())
     max_height = int(height_entry.get())
     move_duplicates = bool(move_duplicates_entry.get())
-    recursive = bool(recursive_search_entry.get())  # Assuming you add this checkbox
+    recursive = bool(recursive_search_entry.get())
 
     if not os.path.isdir(input_dir):
         messagebox.showerror("Error", "Invalid directory path!")
         return
 
+    # Important fix: We need to collect the paths from the generators
     image_paths = []
+    
     # Use the recursive function if selected, otherwise use the original
     if recursive:
-        image_paths = util.get_images_rec(input_dir)
+        # Collect paths from all chunks returned by the generator
+        for chunk in util.get_images_rec(input_dir):
+            image_paths.extend(chunk)
     else:
-        image_paths = util.get_images(input_dir)
-        
+        # Collect paths from all chunks returned by the generator
+        for chunk in util.get_images(input_dir):
+            image_paths.extend(chunk)
+    
+    print(f"Found {len(image_paths)} images")
+    
     if move_duplicates:
-        dub.add_with_progress(image_paths)
+        # Now image_paths is a list, not a generator
+        image_paths = dub.add_with_progress(image_paths)
     
     # Close the main tkinter window after gathering all inputs
-    root.destroy()  # Close the window after getting the inputs
+    root.destroy()
     
-    # Directly call process_images on the main thread
+    # Process the images
     asyncio.run(process_images(image_paths, max_width, max_height))
 
 if __name__ == "__main__":
