@@ -8,6 +8,49 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from . import util
 
+# Import language dictionaries from __main__.py
+try:
+    from . import __main__ as main_module
+except ImportError:
+    # Fallback if import fails
+    main_module = None
+
+# Define duplicate detection translations
+DUB_ENGLISH = {
+    "title": "Processing Duplicates",
+    "checking": "Checking & moving duplicates...",
+    "scanning": "Scanning for images...",
+    "processing": "Processing images...",
+    "processing_chunk": "Processing chunk {chunk_num}...",
+    "elapsed_time": "Elapsed Time: {seconds}s",
+    "processed": "Processed: {count}",
+    "duplicates": "Duplicates: {count}",
+    "complete": "Processing Complete",
+    "complete_message": "{count} duplicates found and moved to {directory}"
+}
+
+DUB_DANISH = {
+    "title": "Behandler dubletter",
+    "checking": "Kontrollerer og flytter dubletter...",
+    "scanning": "Scanner efter billeder...",
+    "processing": "Behandler billeder...",
+    "processing_chunk": "Behandler gruppe {chunk_num}...",
+    "elapsed_time": "Forløbet tid: {seconds}s",
+    "processed": "Behandlet: {count}",
+    "duplicates": "Dubletter: {count}",
+    "complete": "Behandling fuldført",
+    "complete_message": "{count} dubletter fundet og flyttet til {directory}"
+}
+
+def get_language_dict():
+    """Get the appropriate language dictionary based on current language setting."""
+    if main_module and hasattr(main_module, 'current_language'):
+        # Use the language from main module
+        return DUB_DANISH if main_module.current_language == main_module.DANISH else DUB_ENGLISH
+    else:
+        # Default to English if main module is not available
+        return DUB_ENGLISH
+
 def hash_image(image_path):
     try:
         with Image.open(image_path) as img:
@@ -26,6 +69,9 @@ def add_with_progress(image_directory_or_paths):
     Returns:
         List of non-duplicate image paths
     """
+    # Get the proper language dictionary
+    lang = get_language_dict()
+    
     dupSet = set()
     newList = []
     
@@ -35,10 +81,10 @@ def add_with_progress(image_directory_or_paths):
     
     # Configure the GUI progress bar
     progress_window = tk.Tk()
-    progress_window.title("Processing Duplicates")
+    progress_window.title(lang["title"])
     util.center_window(progress_window, 500, 250)
     
-    label = tk.Label(progress_window, text="Checking & moving duplicates...", font=("Arial", 12))
+    label = tk.Label(progress_window, text=lang["checking"], font=("Arial", 12))
     label.pack(pady=10)
     
     # Configure a larger progress bar style
@@ -57,18 +103,18 @@ def add_with_progress(image_directory_or_paths):
     progress_bar.pack(fill='x', padx=40, pady=20)
     
     # Create status labels
-    status_label = tk.Label(progress_window, text="Scanning for images...", font=("Arial", 10))
+    status_label = tk.Label(progress_window, text=lang["scanning"], font=("Arial", 10))
     status_label.pack()
     
     # Labels for elapsed time
-    elapsed_time_label = tk.Label(progress_window, text="Elapsed Time: 0s", font=("Arial", 10))
+    elapsed_time_label = tk.Label(progress_window, text=lang["elapsed_time"].format(seconds=0), font=("Arial", 10))
     elapsed_time_label.pack()
     
     # Stats labels
-    processed_label = tk.Label(progress_window, text="Processed: 0", font=("Arial", 10))
+    processed_label = tk.Label(progress_window, text=lang["processed"].format(count=0), font=("Arial", 10))
     processed_label.pack()
     
-    duplicates_label = tk.Label(progress_window, text="Duplicates: 0", font=("Arial", 10))
+    duplicates_label = tk.Label(progress_window, text=lang["duplicates"].format(count=0), font=("Arial", 10))
     duplicates_label.pack()
 
     def process_images():
@@ -79,7 +125,7 @@ def add_with_progress(image_directory_or_paths):
         
         # Start the progress bar animation
         progress_bar.start()
-        status_label.config(text="Processing images...")
+        status_label.config(text=lang["processing"])
         
         try:
             # Fix the issue by checking if input is a string (directory path)
@@ -97,7 +143,7 @@ def add_with_progress(image_directory_or_paths):
             # Process images chunk by chunk
             for i, image_chunk in enumerate(image_chunks_generator):
                 # Update status
-                status_label.config(text=f"Processing chunk {i+1}...")
+                status_label.config(text=lang["processing_chunk"].format(chunk_num=i+1))
                 
                 # Process the chunk with ThreadPoolExecutor
                 with ThreadPoolExecutor() as executor:
@@ -125,12 +171,12 @@ def add_with_progress(image_directory_or_paths):
                         # Update GUI every few images to avoid slowdown
                         if total_processed % 5 == 0 or total_processed == 1:
                             # Update GUI
-                            processed_label.config(text=f"Processed: {total_processed}")
-                            duplicates_label.config(text=f"Duplicates: {total_duplicates}")
+                            processed_label.config(text=lang["processed"].format(count=total_processed))
+                            duplicates_label.config(text=lang["duplicates"].format(count=total_duplicates))
                             
                             # Calculate elapsed time
                             elapsed_time = time.time() - start_time
-                            elapsed_time_label.config(text=f"Elapsed Time: {int(elapsed_time)}s")
+                            elapsed_time_label.config(text=lang["elapsed_time"].format(seconds=int(elapsed_time)))
                             
                             # Update window to prevent freezing
                             progress_window.update_idletasks()
@@ -139,7 +185,10 @@ def add_with_progress(image_directory_or_paths):
             # Processing complete
             progress_bar.stop()
             progress_window.destroy()
-            messagebox.showinfo("Processing Complete", f"{total_duplicates} duplicates found and moved to {duplicates_dir}")
+            messagebox.showinfo(
+                lang["complete"], 
+                lang["complete_message"].format(count=total_duplicates, directory=duplicates_dir)
+            )
     
     # Run the processing in a background thread
     progress_window.after(100, process_images)
