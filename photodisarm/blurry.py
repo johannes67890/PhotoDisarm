@@ -5,8 +5,8 @@ import os
 import argparse
 from glob import glob
 from multiprocessing import Pool, cpu_count
-from . import canvas
-from . import util
+import photodisarm.canvas as canvas
+import photodisarm.util as util
 def variance_of_laplacian(image):
     return cv2.Laplacian(image, cv2.CV_64F).var()
 

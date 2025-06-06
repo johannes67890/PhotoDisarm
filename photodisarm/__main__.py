@@ -9,9 +9,9 @@ from tkinter import filedialog, messagebox
 from collections import deque
 import asyncio
 # Import your other modules
-from . import dub
-from . import blurry
-from . import util
+import photodisarm.dub as dub
+import photodisarm.blurry as blurry
+import photodisarm.util as util
 
 # Define language dictionaries for UI text
 ENGLISH = {

@@ -6,14 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
 import tkinter as tk
 from tkinter import ttk, messagebox
-from . import util
+import photodisarm.util as util
 
-# Import language dictionaries from __main__.py
-try:
-    from . import __main__ as main_module
-except ImportError:
-    # Fallback if import fails
-    main_module = None
 
 # Define duplicate detection translations
 DUB_ENGLISH = {
@@ -42,14 +36,6 @@ DUB_DANISH = {
     "complete_message": "{count} dubletter fundet og flyttet til {directory}"
 }
 
-def get_language_dict():
-    """Get the appropriate language dictionary based on current language setting."""
-    if main_module and hasattr(main_module, 'current_language'):
-        # Use the language from main module
-        return DUB_DANISH if main_module.current_language == main_module.DANISH else DUB_ENGLISH
-    else:
-        # Default to English if main module is not available
-        return DUB_ENGLISH
 
 def hash_image(image_path):
     try:
@@ -70,7 +56,7 @@ def add_with_progress(image_directory_or_paths):
         List of non-duplicate image paths
     """
     # Get the proper language dictionary
-    lang = get_language_dict()
+    lang = DUB_DANISH
     
     dupSet = set()
     newList = []

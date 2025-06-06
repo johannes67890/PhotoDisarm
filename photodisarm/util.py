@@ -3,7 +3,7 @@ from PIL import Image, ExifTags
 from datetime import datetime
 import shutil
 from glob import glob
-from . import dub as dup
+import photodisarm.dub as dub
 import tkinter as tk
 import cv2
 from glob import glob
