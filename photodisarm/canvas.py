@@ -6,7 +6,7 @@ import argparse
 from glob import glob
 from multiprocessing import Pool, cpu_count
 import shutil  # For moving files
-import dub
+from . import dub
 import threading
 
 

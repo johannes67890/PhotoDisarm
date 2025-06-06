@@ -9,13 +9,12 @@ from multiprocessing import Pool, cpu_count
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from collections import deque
-
-# Import your other modules
-import dub
-import blurry
-import util
-import canvas
 import asyncio
+# Import your other modules
+from . import dub
+from . import blurry
+from . import util
+from . import canvas
 async def load_next_chunk(images: list, index: int, chunk_size: int, max_width: int, max_height: int):
     next_chunk = images[index:index + chunk_size]
 

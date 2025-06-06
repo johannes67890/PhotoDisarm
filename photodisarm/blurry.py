@@ -5,8 +5,8 @@ import os
 import argparse
 from glob import glob
 from multiprocessing import Pool, cpu_count
-import canvas
-import util
+from . import canvas
+from . import util
 def variance_of_laplacian(image):
     return cv2.Laplacian(image, cv2.CV_64F).var()
 

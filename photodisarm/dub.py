@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
 import tkinter as tk
 from tkinter import ttk, messagebox
-import util
+from . import util
 
 def hash_image(image_path):
     with Image.open(image_path) as img:

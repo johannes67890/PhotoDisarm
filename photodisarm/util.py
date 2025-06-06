@@ -3,8 +3,7 @@ from PIL import Image, ExifTags
 from datetime import datetime
 import shutil
 from glob import glob
-import dub as dup
-import util as util
+from . import dub as dup
 import tkinter as tk
 import cv2
 
@@ -16,7 +15,7 @@ def get_images(directory, move_duplicates, valid_exts=(".jpg", ".jpeg", ".png", 
     if move_duplicates:
         image_paths = dup.add_with_progress(image_paths)
 
-    return util.sort_images_by_date(image_paths)
+    return sort_images_by_date(image_paths)
 
 def get_image_metadata_date(image_path):
     # Open the image file
