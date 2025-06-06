@@ -1,9 +1,7 @@
 import cv2
-import rawpy
 import numpy as np
 import os
 import shutil
-import threading
 from glob import glob
 from multiprocessing import Pool, cpu_count
 import tkinter as tk
@@ -14,7 +12,6 @@ import asyncio
 from . import dub
 from . import blurry
 from . import util
-from . import canvas
 
 async def process_images(images: list, max_width: int, max_height: int):
     index: int = 0
@@ -39,7 +36,9 @@ async def process_images(images: list, max_width: int, max_height: int):
             image_name = os.path.basename(imagePath)
             new_path = os.path.join("Deleted", image_name)
             shutil.move(imagePath, new_path)
-       
+        elif key == 27 or key == -1:  # Esc key
+            cv2.destroyAllWindows()
+            return
     cv2.destroyAllWindows()
 
 def start_processing():
@@ -70,11 +69,11 @@ def start_processing():
     
     if move_duplicates:
         # Now image_paths is a list, not a generator
-        image_paths = dub.add_with_progress(image_paths)
+        dub.add_with_progress(image_paths)
     
     # Close the main tkinter window after gathering all inputs
     root.destroy()
-    
+    print(len(image_paths))
     # Process the images
     asyncio.run(process_images(image_paths, max_width, max_height))
 
