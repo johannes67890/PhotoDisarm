@@ -11,6 +11,7 @@ try:
     import asyncio
     # Import your other modules
     import photodisarm.dub as dub
+    import photodisarm.canvas as canvas
     import photodisarm.blurry as blurry
     import photodisarm.util as util
 
@@ -37,7 +38,8 @@ try:
         "images": "images",
         "sorted_by_date": "Sorted by date",
         "processing_image": "Processing image",
-        "no_date": "*No Date Found*"
+        "no_date": "*No Date Found*",
+        "keybindings": "Space: Save | Backspace: Delete | Any key: Skip"
     }
 
     DANISH = {
@@ -62,7 +64,8 @@ try:
         "images": "billeder",
         "sorted_by_date": "Sorteret efter dato",
         "processing_image": "Behandler billede",
-        "no_date": "*Ingen dato fundet*"
+        "no_date": "*Ingen dato fundet*",
+        "keybindings": "Mellemrum: Gem | Backspace: Slet | Enhver tast: Spring over"
     }
 
     # Global variable to track current language
@@ -125,29 +128,42 @@ try:
                 image_date = util.get_image_metadata_date(imagePath)
                 date_info = f"{image_date}" if image_date else current_language["no_date"]
                 
-                # Display position info in bottom left corner
+                # Display position info in bottom left corner using custom UTF-8 text function
                 position_text = f"{current_language['image_window']} {current_index + 1}/{total_images}"
-                cv2.putText(
-                    status_image, 
+                status_image = canvas.put_text_utf8(
+                    status_image,
                     position_text,
-                    (10, max_height - 20),  # Bottom left position
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
+                    position=(10, max_height - 30),
+                    font_size=18, 
+                    color=(255, 255, 255),
+                    thickness=2,
+                    with_background=True  # Add semi-transparent background
                 )
                 
-                # Calculate text width for date info to position it in the bottom right
-                (text_width, text_height), _ = cv2.getTextSize(
-                    date_info, 
-                    cv2.FONT_HERSHEY_SIMPLEX, 
-                    0.7, 
-                    2
+                # Display keybindings in bottom middle
+                keybinding_text = current_language["keybindings"]
+                # Calculate the center position (roughly)
+                text_width = len(keybinding_text) * 7  # Rough estimate for font size 18
+                center_x = (max_width - text_width) // 2
+                status_image = canvas.put_text_utf8(
+                    status_image,
+                    keybinding_text,
+                    position=(center_x, max_height - 30),
+                    font_size=18,
+                    color=(255, 255, 255),  # Yellow for better visibility
+                    thickness=2,
+                    with_background=True  # Add semi-transparent background
                 )
                 
                 # Display date info in bottom right corner
-                cv2.putText(
-                    status_image, 
+                status_image = canvas.put_text_utf8(
+                    status_image,
                     date_info,
-                    (max_width - text_width - 10, max_height - 20),  # Bottom right position
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
+                    position=(max_width - len(date_info) * 10 - 20, max_height - 30),
+                    font_size=18,
+                    color=(255, 255, 255),
+                    thickness=2,
+                    with_background=True  # Add semi-transparent background
                 )
                 
                 cv2.imshow(current_language["image_window"], status_image)
