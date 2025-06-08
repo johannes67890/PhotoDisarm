@@ -18,6 +18,7 @@ try:
     ENGLISH = {
         "window_title": "Image Processing Interface",
         "input_dir": "Input Directory",
+        "output_dir": "Output Directory",
         "browse": "Browse",
         "threshold": "Threshold",
         "chunk_size": "Chunk Size",
@@ -42,6 +43,7 @@ try:
     DANISH = {
         "window_title": "Billedbehandlingsværktøj",
         "input_dir": "Inputmappe",
+        "output_dir": "Outputmappe",
         "browse": "Gennemse",
         "threshold": "Tærskelværdi",
         "chunk_size": "Gruppestørrelse",
@@ -66,7 +68,7 @@ try:
     # Global variable to track current language
     current_language = DANISH
 
-    async def process_images(image_paths: list, max_width: int, max_height: int, chunk_size: int = 50):
+    async def process_images(image_paths: list, max_width: int, max_height: int, chunk_size: int = 50, output_dir: str = None):
         """
         Process images in chunks to reduce memory usage.
         
@@ -75,6 +77,7 @@ try:
             max_width: Maximum width for image display
             max_height: Maximum height for image display
             chunk_size: Number of images to load into memory at once
+            output_dir: Directory for organized output files
         """
         index: int = 0
         total_images = len(image_paths)
@@ -120,13 +123,30 @@ try:
                 
                 # Try to get the image date
                 image_date = util.get_image_metadata_date(imagePath)
-                date_info = f" - {image_date}" if image_date else current_language["no_date"]
+                date_info = f"{image_date}" if image_date else current_language["no_date"]
                 
-                # Display position info
+                # Display position info in bottom left corner
+                position_text = f"{current_language['image_window']} {current_index + 1}/{total_images}"
                 cv2.putText(
                     status_image, 
-                    f"{current_language['image_window']} {current_index + 1}/{total_images} - {date_info}",
-                    (10, max_height - 20),
+                    position_text,
+                    (10, max_height - 20),  # Bottom left position
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
+                )
+                
+                # Calculate text width for date info to position it in the bottom right
+                (text_width, text_height), _ = cv2.getTextSize(
+                    date_info, 
+                    cv2.FONT_HERSHEY_SIMPLEX, 
+                    0.7, 
+                    2
+                )
+                
+                # Display date info in bottom right corner
+                cv2.putText(
+                    status_image, 
+                    date_info,
+                    (max_width - text_width - 10, max_height - 20),  # Bottom right position
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
                 )
                 
@@ -134,14 +154,15 @@ try:
                 key = cv2.waitKey(0)
                 print(key)
                 if key == 32:  # Space key
-                    new_path = util.move_image_to_dir_with_date(imagePath)
+                    new_path = util.move_image_to_dir_with_date(imagePath, output_dir)
                     # Update the path in the original list
                     image_paths[current_index] = new_path
                     current_chunk_index += 1
                 elif key == 8:  # Backspace key (delete)
-                    os.makedirs("Deleted", exist_ok=True)
+                    deleted_dir = os.path.join(output_dir, "Deleted") if output_dir else "Deleted"
+                    os.makedirs(deleted_dir, exist_ok=True)
                     image_name = os.path.basename(imagePath)
-                    new_path = os.path.join("Deleted", image_name)
+                    new_path = os.path.join(deleted_dir, image_name)
                     shutil.move(imagePath, new_path)
                     current_chunk_index += 1
                 elif key == 27 or key == -1:  # Esc key
@@ -172,7 +193,9 @@ try:
         
         # Update all labels
         input_dir_label.config(text=current_language["input_dir"])
+        output_dir_label.config(text=current_language["output_dir"])  # Add this line
         browse_button.config(text=current_language["browse"])
+        output_browse_button.config(text=current_language["browse"])  # Add this line
         threshold_label.config(text=current_language["threshold"])
         chunk_size_label.config(text=current_language["chunk_size"])
         width_label.config(text=current_language["max_width"])
@@ -185,16 +208,21 @@ try:
     # Update the start_processing function to pass the chunk size
     def start_processing():
         input_dir = input_path.get()
+        output_dir = output_path.get()
         max_width = int(width_entry.get())
         max_height = int(height_entry.get())
         move_duplicates = bool(move_duplicates_entry.get())
         recursive = bool(recursive_search_entry.get())
-        chunk_size = int(chunk_size_entry.get())  # Get chunk size from the UI
+        chunk_size = int(chunk_size_entry.get())
 
         # Rest of the function remains the same
         if not os.path.isdir(input_dir):
             messagebox.showerror(current_language["error"], current_language["invalid_dir"])
             return
+
+        # Create output directory if it doesn't exist
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
 
         image_paths = []
         
@@ -208,12 +236,13 @@ try:
         print(f"Found {len(image_paths)} images")
         
         if move_duplicates:
-            image_paths = dub.add_with_progress(image_paths)
+            # Pass the output directory to add_with_progress
+            image_paths = dub.add_with_progress(image_paths, output_dir)
+            
         
-        root.destroy()
         print(f"Processing {len(image_paths)} images in chunks of {chunk_size}")
-        # Pass the chunk size to process_images
-        asyncio.run(process_images(image_paths, max_width, max_height, chunk_size))
+        # Pass the output directory to process_images
+        asyncio.run(process_images(image_paths, max_width, max_height, chunk_size, output_dir))
 
     if __name__ == "__main__":
     
@@ -251,41 +280,58 @@ try:
         )
         browse_button.grid(row=1, column=2, sticky="w", padx=5)
 
+        # Add Output Directory - Using the next row
+        output_path = tk.StringVar()
+        output_dir_label = tk.Label(root, text=current_language["output_dir"], anchor="e", width=20)
+        output_dir_label.grid(row=2, column=0, sticky="e", padx=5, pady=5)
+        
+        output_entry = tk.Entry(root, textvariable=output_path, width=40)
+        output_entry.grid(row=2, column=1, sticky="ew", padx=5)
+        output_path.set(os.path.join(os.getcwd(), "output"))  # Default to 'output' subfolder
+        
+        # Output Browse button
+        output_browse_button = tk.Button(
+            root, 
+            text=current_language["browse"], 
+            command=lambda: output_path.set(filedialog.askdirectory(initialdir=output_path.get()))
+        )
+        output_browse_button.grid(row=2, column=2, sticky="w", padx=5)
+
         # Threshold
         threshold_label = tk.Label(root, text=current_language["threshold"], anchor="e", width=20)
-        threshold_label.grid(row=2, column=0, sticky="e", padx=5, pady=5)
+        threshold_label.grid(row=3, column=0, sticky="e", padx=5, pady=5)
         
         threshold_entry = tk.Entry(root, width=10)
         threshold_entry.insert(0, "150.0")
-        threshold_entry.grid(row=2, column=1, sticky="w", padx=5)
+        threshold_entry.grid(row=3, column=1, sticky="w", padx=5)
 
         # Chunk Size
         chunk_size_label = tk.Label(root, text=current_language["chunk_size"], anchor="e", width=20)
-        chunk_size_label.grid(row=3, column=0, sticky="e", padx=5, pady=5)
+        chunk_size_label.grid(row=4, column=0, sticky="e", padx=5, pady=5)
         
         chunk_size_entry = tk.Entry(root, width=10)
         chunk_size_entry.insert(0, "5")
-        chunk_size_entry.grid(row=3, column=1, sticky="w", padx=5)
+        chunk_size_entry.grid(row=4, column=1, sticky="w", padx=5)
 
         # Max Width
         width_label = tk.Label(root, text=current_language["max_width"], anchor="e", width=20)
-        width_label.grid(row=4, column=0, sticky="e", padx=5, pady=5)
+        width_label.grid(row=5, column=0, sticky="e", padx=5, pady=5)
         
         width_entry = tk.Entry(root, width=10)
         width_entry.insert(0, "1720")
-        width_entry.grid(row=4, column=1, sticky="w", padx=5)
+        width_entry.grid(row=5, column=1, sticky="w", padx=5)
 
         # Max Height
         height_label = tk.Label(root, text=current_language["max_height"], anchor="e", width=20)
-        height_label.grid(row=5, column=0, sticky="e", padx=5, pady=5)
+        height_label.grid(row=6, column=0, sticky="e", padx=5, pady=5)
         
         height_entry = tk.Entry(root, width=10)
         height_entry.insert(0, "1000")
-        height_entry.grid(row=5, column=1, sticky="w", padx=5)
+        height_entry.grid(row=6, column=1, sticky="w", padx=5)
 
         # Checkboxes in a new frame for better organization
         checkbox_frame = tk.Frame(root)
-        checkbox_frame.grid(row=6, column=0, columnspan=3, sticky="w", padx=10, pady=10)
+        checkbox_frame.grid(row=7, column=0, columnspan=3, sticky="w", padx=10, pady=10)
         
         # Move Duplicates Checkbox
         move_duplicates_entry = tk.IntVar()
@@ -301,7 +347,7 @@ try:
 
         # Start Button
         start_button = tk.Button(root, text=current_language["start_processing"], command=start_processing)
-        start_button.grid(row=7, column=0, columnspan=3, pady=20)
+        start_button.grid(row=8, column=0, columnspan=3, pady=20)
         # Make the start button larger and more prominent
         start_button.config(height=2, width=20, bg="#d0f0d0", font=("Arial", 10, "bold"))
 

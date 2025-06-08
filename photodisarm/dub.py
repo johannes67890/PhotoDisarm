@@ -45,12 +45,13 @@ def hash_image(image_path):
         print(f"Error hashing {image_path}: {e}")
         return None
 
-def add_with_progress(image_directory_or_paths):
+def add_with_progress(image_directory_or_paths, output_dir=None):
     """
     Process images in chunks to detect and move duplicates.
     
     Args:
         image_directory_or_paths: Either a directory path or a list of image paths
+        output_dir: Directory where the duplicates folder should be created
     
     Returns:
         List of non-duplicate image paths
@@ -61,8 +62,8 @@ def add_with_progress(image_directory_or_paths):
     dupSet = set()
     newList = []
     
-    # Ensure the duplicates directory exists
-    duplicates_dir = "duplicates"
+    # Ensure the duplicates directory exists within the output directory
+    duplicates_dir = os.path.join(output_dir, "duplicates") if output_dir else "duplicates"
     os.makedirs(duplicates_dir, exist_ok=True)
     
     # Configure the GUI progress bar
@@ -124,7 +125,7 @@ def add_with_progress(image_directory_or_paths):
                     for i in range(0, len(lst), n):
                         yield lst[i:i + min(n, len(lst) - i)]
                 
-                image_chunks_generator = list_to_chunks(image_directory_or_paths, 25)
+                image_chunks_generator = list_to_chunks(image_directory_or_paths, 100)
         
             # Process images chunk by chunk
             for i, image_chunk in enumerate(image_chunks_generator):

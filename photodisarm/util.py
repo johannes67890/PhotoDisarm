@@ -95,20 +95,48 @@ def sort_images_by_date(image_paths: list):
     return sorted(image_paths, key=lambda x: os.path.getctime(x))
 
 
-def move_image_to_dir_with_date(image_path) -> str:
-    new_path = None
-    if get_image_metadata_date(image_path) is None:
-        new_path = os.path.join(os.path.dirname(image_path), "No Date")
-    else:
-        date = datetime.strptime(get_image_metadata_date(image_path), "%Y:%m:%d %H:%M:%S")
-        new_path = os.path.join(os.path.dirname(image_path), date.strftime("%Y"), date.strftime("%b"))
-
-    print(f"Moving image to {os.path.dirname(new_path)}")
-    if not os.path.exists(new_path):
-        os.makedirs(new_path, exist_ok=True)
-    shutil.move(image_path, new_path)
+def move_image_to_dir_with_date(image_path, output_dir=None) -> str:
+    """
+    Move an image to a directory structure organized by date.
+    If the folders already exist, they will be used as is.
     
-    return os.path.join(new_path, os.path.basename(image_path))
+    Args:
+        image_path: Path to the image file
+        output_dir: Optional output directory (base path)
+        
+    Returns:
+        New path of the moved image file
+    """
+    # Determine the base directory (either provided output_dir or original image directory)
+    base_dir = output_dir if output_dir else os.path.dirname(image_path)
+    
+    # Get the image's date
+    image_date = get_image_metadata_date(image_path)
+    
+    if image_date is None:
+        # If no date found, place in "No Date" folder
+        new_dir = os.path.join(base_dir, "No Date")
+    else:
+        # Parse the date and create directory structure: year/month
+        date = datetime.strptime(image_date, "%Y:%m:%d %H:%M:%S")
+        new_dir = os.path.join(base_dir, date.strftime("%Y"), date.strftime("%b"))
+    
+    # Check if directory exists, create it if it doesn't
+    if not os.path.exists(new_dir):
+        print(f"Creating directory: {new_dir}")
+        os.makedirs(new_dir, exist_ok=True)
+    else:
+        print(f"Using existing directory: {new_dir}")
+    
+    # Get the destination file path
+    new_file_path = os.path.join(new_dir, os.path.basename(image_path))
+    
+    # Move the file
+    print(f"Moving image from {image_path} to {new_file_path}")
+    shutil.move(image_path, new_dir)
+    
+    # Return the new full path
+    return new_file_path
 
 
 def center_window(window: tk.Tk, width=500, height=250):

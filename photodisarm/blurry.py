@@ -33,8 +33,6 @@ def process_image(path:str, threshold, max_width, max_height):
         resized_image = canvas.resize_image(image, max_width, max_height)
         # Add text to the top of the image
         # util.printDateOnWindow(path)
-        cv2.putText(resized_image, f"{text}: {fm:.2f}", (10, 30),
-                    cv2.FONT_ITALIC, 0.8, color, 2)
         return path, resized_image
     except Exception as e:
         print(f"Error processing {path}: {e}")
