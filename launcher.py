@@ -39,7 +39,7 @@ try:
         "sorted_by_date": "Sorted by date",
         "processing_image": "Processing image",
         "no_date": "*No Date Found*",
-        "keybindings": "Space: Save | Backspace: Delete | Any key: Skip"
+        "keybindings": "Space: Save | Backspace: Delete | ← : Back | Any key: Skip"
     }
 
     DANISH = {
@@ -65,7 +65,7 @@ try:
         "sorted_by_date": "Sorteret efter dato",
         "processing_image": "Behandler billede",
         "no_date": "*Ingen dato fundet*",
-        "keybindings": "Mellemrum: Gem | Backspace: Slet | Enhver tast: Spring over"
+        "keybindings": "Mellemrum: Gem | Backspace: Slet | ← : Tilbage | Enhver tast: Spring over"
     }
 
     # Global variable to track current language
@@ -84,7 +84,9 @@ try:
         """
         index: int = 0
         total_images = len(image_paths)
-        
+        history = []  # Will store tuples of (image_path, action, original_path)
+        # Action codes: 0=skip, 1=save, 2=delete
+
         cv2.namedWindow(current_language["image_window"], cv2.WINDOW_NORMAL)
         cv2.resizeWindow(current_language["image_window"], max_width, max_height)
         
@@ -114,13 +116,14 @@ try:
                 imagePath = image_paths[current_index]
                 
                 print(f"{current_language['processing_image']} {current_index + 1}/{total_images}: {imagePath}")
-                _, imageData = blurry.process_image(imagePath, 150, max_width, max_height)
+                _, imageData = blurry.process_image(imagePath, max_width, max_height)
                 
                 if imageData is None:
                     # Skip problematic images
                     current_chunk_index += 1
                     continue
-                    
+                
+                original_path = imagePath    
                 # Display info about current position and date
                 status_image = imageData.copy()
                 
@@ -167,14 +170,84 @@ try:
                 )
                 
                 cv2.imshow(current_language["image_window"], status_image)
-                key = cv2.waitKey(0)
+                key = cv2.waitKeyEx(0)
                 print(key)
+                if key in (81, 2424832, 37, 65361):
+                    print("back")
+                    if len(history) > 0:
+                        prev_image, prev_action, prev_original_path = history.pop()
+
+                        # Undo the previous action
+                        if prev_action == 1:  # Was saved
+                            # Move from organized folder back to original location
+                            try:
+                                # Check if file still exists at saved location
+                                if os.path.exists(prev_image):
+                                    # Move it back to its original location or parent folder
+                                    parent_dir = os.path.dirname(prev_original_path)
+                                    if not os.path.exists(parent_dir):
+                                        os.makedirs(parent_dir, exist_ok=True)
+                                    shutil.move(prev_image, prev_original_path)
+                                    print(f"Moved {prev_image} back to {prev_original_path}")
+                                else:
+                                    print(f"Warning: Can't undo save, file doesn't exist: {prev_image}")
+                            except Exception as e:
+                                print(f"Error undoing save: {e}")
+                        
+                        elif prev_action == 2:  # Was deleted
+                            # Move from deleted folder back to original location
+                            try:
+                                deleted_dir = os.path.join(output_dir, "Deleted") if output_dir else "Deleted"
+                                deleted_path = os.path.join(deleted_dir, os.path.basename(prev_original_path))
+                                
+                                # Check if file exists in deleted folder
+                                if os.path.exists(deleted_path):
+                                    # Ensure parent directory exists
+                                    parent_dir = os.path.dirname(prev_original_path)
+                                    if not os.path.exists(parent_dir):
+                                        os.makedirs(parent_dir, exist_ok=True)
+                                    shutil.move(deleted_path, prev_original_path)
+                                    print(f"Moved {deleted_path} back to {prev_original_path}")
+                                else:
+                                    print(f"Warning: Can't undo delete, file doesn't exist: {deleted_path}")
+                            except Exception as e:
+                                print(f"Error undoing delete: {e}")
+                        
+                        # Update the current position to show the previous image
+                        # We need to find the index of the previous image in image_paths
+                        try:
+                            prev_index = image_paths.index(prev_original_path)
+                            # Adjust chunk indices if necessary
+                            if prev_index < index:
+                                # Need to go back to previous chunk
+                                new_chunk_start = (prev_index // chunk_size) * chunk_size
+                                index = new_chunk_start
+                                current_chunk_index = prev_index - new_chunk_start
+                            else:
+                                # Same chunk
+                                current_chunk_index = prev_index - index
+                        except ValueError:
+                            # Image not found in list, just go back one
+                            if current_chunk_index > 0:
+                                current_chunk_index -= 1
+                            elif index > 0:
+                                index -= chunk_size
+                                current_chunk_index = chunk_size - 1
+                    
+                    # Skip the rest of the processing for this loop
+                    continue
                 if key == 32:  # Space key
+                    # Store current state in history before saving
+                    history.append((imagePath, 1, imagePath))  # 1 = save action
+                    
                     new_path = util.move_image_to_dir_with_date(imagePath, output_dir)
                     # Update the path in the original list
                     image_paths[current_index] = new_path
                     current_chunk_index += 1
                 elif key == 8:  # Backspace key (delete)
+                    # Store current state in history before deleting
+                    history.append((imagePath, 2, imagePath))  # 2 = delete action
+                    
                     deleted_dir = os.path.join(output_dir, "Deleted") if output_dir else "Deleted"
                     os.makedirs(deleted_dir, exist_ok=True)
                     image_name = os.path.basename(imagePath)
@@ -185,7 +258,8 @@ try:
                     cv2.destroyAllWindows()
                     return
                 else:
-                    # For any other key, move to next image
+                    # For any other key, store in history as skipped and move to next image
+                    history.append((imagePath, 0, imagePath))  # 0 = skip action
                     current_chunk_index += 1
             
             # Move to the next chunk
