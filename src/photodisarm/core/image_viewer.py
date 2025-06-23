@@ -218,60 +218,58 @@ class ImageViewer:
         # Try to get the image date
         image_date = get_image_metadata_date(imagePath)
         date_info = f"{image_date}" if image_date else localization.get_text("no_date")
-        
-        # Display position info in bottom left corner
+          # Display position info in bottom left corner with better padding
         position_text = f"{localization.get_text('image_window')} {self.current_image_index + 1}/{len(self.image_paths)}"
         status_image = put_text_utf8(
             status_image,
             position_text,
-            position=(10, self.max_height - 30),
+            position=(20, self.max_height - 40),  # Increased padding from bottom/left
             font_size=18, 
             color=(255, 255, 255),
             thickness=2,
             with_background=True
         )
         
-        # Display keybindings in bottom middle
+        # Display keybindings in bottom middle with better positioning
         keybinding_text = localization.get_text("keybindings")
-        # Calculate the center position (roughly)
-        text_width = len(keybinding_text) * 7  # Rough estimate for font size 18
+        # Calculate the center position more accurately
+        text_width = len(keybinding_text) * 8  # Better estimate for font size 18
         center_x = (self.max_width - text_width) // 2
         status_image = put_text_utf8(
             status_image,
             keybinding_text,
-            position=(center_x, self.max_height - 30),
+            position=(center_x, self.max_height - 40),  # Increased padding from bottom
             font_size=18,
             color=(255, 255, 255),
             thickness=2,
             with_background=True
         )
-        
-        # Add status in top right
+          # Add status in top right
         current_status = self.get_image_status(imagePath)
         if current_status:
             # Use different colors based on status
             if current_status == localization.get_text("status_saved"):
                 status_color = (0, 255, 0)  # Green for saved
             elif current_status == localization.get_text("status_deleted"):
-                status_color = (0, 0, 255)  # Red for deleted
+                status_color = (0, 0, 255)  # Red (BGR format) for deleted
             else:
                 status_color = (255, 255, 255)  # White for skipped
             
+            # Calculate better position based on text length
+            status_width = len(current_status) * 10  # Estimate text width
             status_image = put_text_utf8(
                 status_image,
                 current_status,
-                position=(self.max_width - 150, 30),
-                font_size=16,
+                position=(self.max_width - status_width - 30, 40),  # Better top-right positioning
+                font_size=18,  # Slightly larger text
                 color=status_color,
                 thickness=2,
                 with_background=True
-            )
-
-        # Display date info in bottom right corner
+            )# Display date info in bottom right corner with improved positioning
         status_image = put_text_utf8(
             status_image,
             date_info,
-            position=(self.max_width - len(date_info) * 10 - 20, self.max_height - 30),
+            position=(self.max_width - len(date_info) * 10 - 30, self.max_height - 40),
             font_size=18,
             color=(255, 255, 255),
             thickness=2,

@@ -147,6 +147,7 @@ def process_image(path: str, max_width: int, max_height: int,
 def resize_image_to_fit(image: np.ndarray, max_width: int, max_height: int) -> np.ndarray:
     """
     Resize an image to fit within specified dimensions while preserving aspect ratio
+    and adding black bars as needed (letterboxing or pillarboxing)
     
     Args:
         image: The input image
@@ -154,7 +155,7 @@ def resize_image_to_fit(image: np.ndarray, max_width: int, max_height: int) -> n
         max_height: Maximum allowed height
         
     Returns:
-        Resized image
+        Resized image with black bars if necessary
     """
     height, width = image.shape[:2]
     
@@ -172,7 +173,65 @@ def resize_image_to_fit(image: np.ndarray, max_width: int, max_height: int) -> n
         new_width = int(new_height * aspect)
     
     # Resize the image
-    return cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+    resized_img = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+    
+    # Create a black canvas of the target size
+    canvas = np.zeros((max_height, max_width, 3), dtype=np.uint8)
+    
+    # Calculate position to center the image
+    y_offset = (max_height - new_height) // 2
+    x_offset = (max_width - new_width) // 2
+    
+    # Place the resized image on the black canvas
+    canvas[y_offset:y_offset+new_height, x_offset:x_offset+new_width] = resized_img
+    
+    return canvas
+
+
+def resize_image_to_fit_with_color(image: np.ndarray, max_width: int, max_height: int, 
+                                 bg_color: Tuple[int, int, int] = (0, 0, 0)) -> np.ndarray:
+    """
+    Resize an image to fit within specified dimensions while preserving aspect ratio
+    and adding colored bars as needed (letterboxing or pillarboxing)
+    
+    Args:
+        image: The input image
+        max_width: Maximum allowed width
+        max_height: Maximum allowed height
+        bg_color: (B, G, R) color tuple for the background
+        
+    Returns:
+        Resized image with colored bars
+    """
+    height, width = image.shape[:2]
+    
+    # Calculate aspect ratios
+    aspect = width / height
+    target_aspect = max_width / max_height
+    
+    if aspect > target_aspect:
+        # Image is wider than target, scale by width
+        new_width = max_width
+        new_height = int(new_width / aspect)
+    else:
+        # Image is taller than target, scale by height
+        new_height = max_height
+        new_width = int(new_height * aspect)
+    
+    # Resize the image
+    resized_img = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+    
+    # Create a colored canvas of the target size
+    canvas = np.full((max_height, max_width, 3), bg_color, dtype=np.uint8)
+    
+    # Calculate position to center the image
+    y_offset = (max_height - new_height) // 2
+    x_offset = (max_width - new_width) // 2
+    
+    # Place the resized image on the colored canvas
+    canvas[y_offset:y_offset+new_height, x_offset:x_offset+new_width] = resized_img
+    
+    return canvas
 
 
 def analyze_image_blur(image: np.ndarray) -> float:

