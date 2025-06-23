@@ -24,12 +24,12 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry install
-        pip install opencv-python rawpy numpy pillow
+        pip install -r requirements.txt
         pip install pyinstaller
         
     - name: Build executable
       run: |
-        pyinstaller --onefile --hidden-import tkinter --hidden-import cv2 --hidden-import numpy --hidden-import rawpy --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageFont --hidden-import PIL.ImageDraw --hidden-import PIL._tkinter --collect-submodules photodisarm .\launcher.py
+        pyinstaller --onefile --name PhotoDisarm --hidden-import tkinter --hidden-import cv2 --hidden-import numpy --hidden-import rawpy --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageFont --hidden-import PIL.ImageDraw --hidden-import PIL._tkinter --paths ./src --collect-submodules photodisarm src/main.py
         
     - name: Create Release
       id: create_release
@@ -48,6 +48,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/launcher.exe
-        asset_name: launcher.exe
+        asset_path: ./dist/PhotoDisarm.exe
+        asset_name: PhotoDisarm.exe
         asset_content_type: application/octet-stream
