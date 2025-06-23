@@ -131,9 +131,18 @@ def move_image_to_dir_with_date(image_path, output_dir=None) -> str:
     # Get the destination file path
     new_file_path = os.path.join(new_dir, os.path.basename(image_path))
     
+    # Check if destination file already exists
+    if os.path.exists(new_file_path):
+        base, ext = os.path.splitext(os.path.basename(image_path))
+        counter = 1
+        while os.path.exists(new_file_path):
+            new_file_path = os.path.join(new_dir, f"{base}_{counter}{ext}")
+            counter += 1
+        print(f"Destination file exists, using {new_file_path} instead")
+
     # Move the file
     print(f"Moving image from {image_path} to {new_file_path}")
-    shutil.move(image_path, new_dir)
+    shutil.move(image_path, new_file_path)
     
     # Return the new full path
     return new_file_path

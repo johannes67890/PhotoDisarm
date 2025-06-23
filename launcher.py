@@ -84,8 +84,8 @@ try:
         """
         index: int = 0
         total_images = len(image_paths)
-        history = []  # Will store tuples of (image_path, action, original_path)
-        # Action codes: 0=skip, 1=save, 2=delete
+        # Use deque with maxlen=10 to automatically limit history size
+        history = deque(maxlen=10)
 
         cv2.namedWindow(current_language["image_window"], cv2.WINDOW_NORMAL)
         cv2.resizeWindow(current_language["image_window"], max_width, max_height)
@@ -167,13 +167,15 @@ try:
                     thickness=2,
                     with_background=True  # Add semi-transparent background
                 )
-                
+            
+            
                 cv2.imshow(current_language["image_window"], status_image)
                 key = cv2.waitKeyEx(0)
                 print(key)
-                if key in (81, 2424832, 37, 65361):
+                
+                if key in (81, 2424832, 37, 65361):  # Left arrow key codes
                     print("back")
-                    if len(history) > 0:
+                    if len(history) > 0:  # Only go back if history isn't empty
                         prev_image, prev_original_path = history.pop()
                         
                         # Update the current position to show the previous image
@@ -196,29 +198,36 @@ try:
                             elif index > 0:
                                 index -= chunk_size
                                 current_chunk_index = chunk_size - 1
+                    else:
+                        print("History limit reached, cannot go back further")
                     
                     # Skip the rest of the processing for this loop
                     continue
-                if key == 32:  # Space key
                     
+                # Store current image in history before processing action
+                if key == 32:  # Space key
+                    history.append((imagePath, imagePath))
                     new_path = util.move_image_to_dir_with_date(imagePath, output_dir)
                     # Update the path in the original list
                     image_paths[current_index] = new_path
                     current_chunk_index += 1
                 elif key == 8:  # Backspace key (delete)
+                    history.append((imagePath, imagePath))
                     deleted_dir = os.path.join(output_dir, "Deleted") if output_dir else "Deleted"
                     os.makedirs(deleted_dir, exist_ok=True)
                     image_name = os.path.basename(imagePath)
                     new_path = os.path.join(deleted_dir, image_name)
                     shutil.move(imagePath, new_path)
+                    image_paths[current_index] = new_path
                     current_chunk_index += 1
                 elif key == 27 or key == -1:  # Esc key
                     cv2.destroyAllWindows()
                     return
                 else:
+                    # For any other key, store in history as skipped and move to next image
+                    history.append((imagePath, imagePath))
                     current_chunk_index += 1
-                # For any other key, store in history as skipped and move to next image
-                history.append((imagePath, imagePath))  # 0 = skip action
+            
             # Move to the next chunk
             index = chunk_end
         
