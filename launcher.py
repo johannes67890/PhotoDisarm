@@ -89,12 +89,12 @@ try:
         if "status_saved" not in current_language:
             ENGLISH["status_saved"] = "Saved"
             ENGLISH["status_deleted"] = "Deleted"
-            ENGLISH["status_skipped"] = "Skipped"
+            ENGLISH["status_skipped"] = ""
             ENGLISH["status_history"] = "History: {count}/10"
             
             DANISH["status_saved"] = "Gemt"
             DANISH["status_deleted"] = "Slettet"
-            DANISH["status_skipped"] = "Sprunget over"
+            DANISH["status_skipped"] = ""
             DANISH["status_history"] = "Historik: {count}/10"
             
 
@@ -178,17 +178,6 @@ try:
                 )
                 
                 # Add history counter in top left when there's history
-
-                history_text = current_language["status_history"].format(count=len(history))
-                status_image = canvas.put_text_utf8(
-                    status_image,
-                    history_text,
-                    position=(10, 30),
-                    font_size=16,
-                    color=(255, 255, 255),
-                    thickness=2,
-                    with_background=True
-                )
                 current_status = get_image_status(imagePath)
                 if current_status:
                     # Use different colors based on status
