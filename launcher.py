@@ -9,13 +9,16 @@ try:
     from tkinter import filedialog, messagebox
     from collections import deque
     import asyncio
+    import threading
+    import queue
+    import time
     # Import your other modules
     import photodisarm.dub as dub
     import photodisarm.canvas as canvas
     import photodisarm.blurry as blurry
     import photodisarm.util as util
 
-    # Define language dictionaries for UI text
+    # Define language dictionaries for UI text    
     ENGLISH = {
         "window_title": "Image Processing Interface",
         "input_dir": "Input Directory",
@@ -39,7 +42,13 @@ try:
         "sorted_by_date": "Sorted by date",
         "processing_image": "Processing image",
         "no_date": "*No Date Found*",
-        "keybindings": "Space: Save | Backspace: Delete | ← : Back | Any key: Skip"
+        "keybindings": "Space: Save | Backspace: Delete | ← : Back | Any key: Skip",
+        "use_cache": "Use Cache (Faster)",        "image_quality": "Image Quality:",
+        "quality_low": "Low (Fast)",
+        "quality_normal": "Normal",
+        "quality_high": "High (Best)",
+        "preloading": "Preloading next images in background...",
+        "loaded_from_cache": "Image loaded from preload cache"
     }
 
     DANISH = {
@@ -71,7 +80,7 @@ try:
     # Global variable to track current language
     current_language = DANISH
 
-    async def process_images(image_paths: list, max_width: int, max_height: int, chunk_size: int = 50, output_dir: str = None):
+    async def process_images(image_paths: list, max_width: int, max_height: int, chunk_size: int = 50, output_dir: str = None, use_cache: bool = True, quality: str = 'normal'):
         """
         Process images in chunks to reduce memory usage.
         
@@ -109,8 +118,7 @@ try:
 
         cv2.namedWindow(current_language["image_window"], cv2.WINDOW_NORMAL)
         cv2.resizeWindow(current_language["image_window"], max_width, max_height)
-        
-        # Process images in chunks
+          # Process images in chunks
         while index < total_images:
             # Calculate the end index for current chunk
             chunk_end = min(index + chunk_size, total_images)
@@ -127,16 +135,39 @@ try:
             # Load current chunk of images
             print(f"{current_language['loading_chunk']} {index//chunk_size + 1}/{(total_images + chunk_size - 1)//chunk_size} ({chunk_end - index} {current_language['images']})")
             print(f"{current_language['sorted_by_date']}: {', '.join([os.path.basename(p) for p in chunk_paths])}")
+              # Start background processor for this chunk and prepare for next chunk
+            background_processor.start(
+                chunk_paths,                   # Current chunk paths
+                0,                            # Start at beginning of chunk
+                max_width,
+                max_height,
+                use_cache,
+                quality,
+                chunk_size,                  # Pass chunk size
+                image_paths,                 # Pass all image paths for next chunk calculation
+                index // chunk_size          # Current chunk index
+            )
             
             # Process the current chunk
             current_chunk_index = 0
             
-            while index + current_chunk_index < chunk_end:
+            while index + current_chunk_index < chunk_end:                
                 current_index = index + current_chunk_index
                 imagePath = image_paths[current_index]
-                
                 print(f"{current_language['processing_image']} {current_index + 1}/{total_images}: {imagePath}")
-                _, imageData = blurry.process_image(imagePath, max_width, max_height)
+                
+                # Update background processor's current index for accurate prefetching
+                background_processor.current_index = current_chunk_index
+                
+                # Get image from background processor (it will process immediately if not preloaded)
+                start_time = time.time()
+                _, imageData = background_processor.get_image(imagePath)
+                load_time = time.time() - start_time
+                
+                if load_time < 0.1:
+                    print(f"Image loaded instantly from preload cache ({load_time:.3f}s)")
+                else:
+                    print(f"Image processed in {load_time:.3f}s")
                 
                 if imageData is None:
                     # Skip problematic images
@@ -259,8 +290,9 @@ try:
                     new_path = os.path.join(deleted_dir, image_name)
                     shutil.move(imagePath, new_path)
                     image_paths[current_index] = new_path
-                    current_chunk_index += 1
+                    current_chunk_index += 1                
                 elif key == 27 or key == -1:  # Esc key
+                    background_processor.stop()  # Stop background processing
                     cv2.destroyAllWindows()
                     return
                 else:
@@ -270,8 +302,8 @@ try:
             
             # Move to the next chunk
             index = chunk_end
-        
-        # All chunks processed
+          # All chunks processed
+        background_processor.stop()  # Stop background processing
         messagebox.showinfo(current_language["done"], current_language["all_processed"])
         cv2.destroyAllWindows()
 
@@ -299,9 +331,7 @@ try:
         duplicates_checkbox.config(text=current_language["delete_duplicates"])
         recursive_checkbox.config(text=current_language["search_recursively"])
         start_button.config(text=current_language["start_processing"])
-        language_button.config(text=current_language["switch_lang"])
-
-    # Update the start_processing function to pass the chunk size
+        language_button.config(text=current_language["switch_lang"])    # Update the start_processing function to pass the chunk size and quality options
     def start_processing():
         input_dir = input_path.get()
         output_dir = output_path.get()
@@ -310,6 +340,8 @@ try:
         move_duplicates = bool(move_duplicates_entry.get())
         recursive = bool(recursive_search_entry.get())
         chunk_size = int(chunk_size_entry.get())
+        use_cache = bool(use_cache_entry.get() if 'use_cache_entry' in globals() else True)
+        quality = quality_var.get() if 'quality_var' in globals() else 'normal'
 
         # Rest of the function remains the same
         if not os.path.isdir(input_dir):
@@ -335,17 +367,229 @@ try:
             # Pass the output directory to add_with_progress
             image_paths = dub.add_with_progress(image_paths, output_dir)
             
-        
         print(f"Processing {len(image_paths)} images in chunks of {chunk_size}")
-        # Pass the output directory to process_images
-        asyncio.run(process_images(image_paths, max_width, max_height, chunk_size, output_dir))
+        print(f"Image quality: {quality}, Cache enabled: {use_cache}")
+        # Pass all parameters to process_images
+        asyncio.run(process_images(image_paths, max_width, max_height, chunk_size, output_dir, use_cache, quality))
+
+    # Background processing class to preload NEF files    class BackgroundProcessor:
+    class BackgroundProcessor:
+        def __init__(self, max_queue_size=50):  # Increased queue size to handle full chunks
+            self.image_queue = queue.Queue(maxsize=max_queue_size)
+            self.processing_thread = None
+            self.running = False
+            self.current_chunk = []
+            self.next_chunk = []
+            self.current_index = 0
+            self.chunk_size = 25  # Default chunk size
+            self.max_width = 1000
+            self.max_height = 800
+            self.use_cache = True
+            self.quality = 'normal'
+            self.processed_images = {}  # In-memory cache for current session
+        def start(self, image_paths, current_index, max_width, max_height, use_cache=True, quality='normal', chunk_size=25, all_paths=None, current_chunk_idx=0):
+            """Start background processing thread with the given parameters"""
+            self.stop()  # Ensure any previous thread is stopped
+            
+            self.current_chunk = image_paths
+            self.current_index = current_index
+            self.max_width = max_width
+            self.max_height = max_height
+            self.use_cache = use_cache
+            self.quality = quality
+            self.chunk_size = chunk_size
+            self.running = True
+            
+            # Prepare next chunk if all_paths is provided
+            if all_paths is not None and len(all_paths) > (current_chunk_idx + 1) * chunk_size:
+                next_start = (current_chunk_idx + 1) * chunk_size
+                next_end = min(next_start + chunk_size, len(all_paths))
+                self.next_chunk = all_paths[next_start:next_end]
+                print(f"Preparing to preload next chunk ({len(self.next_chunk)} images)")
+            else:
+                self.next_chunk = []
+            
+            # Clear the queue and in-memory cache (keep only what's still needed)
+            self.processed_images = {path: img for path, img in self.processed_images.items() 
+                                   if path in self.current_chunk or path in self.next_chunk}
+            
+            while not self.image_queue.empty():
+                try:
+                    self.image_queue.get_nowait()
+                except queue.Empty:
+                    break
+                    
+            # Start processing thread
+            self.processing_thread = threading.Thread(target=self._process_images, daemon=True)
+            self.processing_thread.start()
+            
+            # Print status
+            print(f"Background processor started - caching {len(self.current_chunk)} images in current chunk " + 
+                 f"and {len(self.next_chunk)} images in next chunk")
+            
+        def stop(self):
+            """Stop the background processing"""
+            self.running = False
+            if self.processing_thread and self.processing_thread.is_alive():
+                self.processing_thread.join(timeout=0.5)  # Wait briefly for thread to finish
+            
+            # Clear the queue
+            while not self.image_queue.empty():
+                try:
+                    self.image_queue.get_nowait()
+                except queue.Empty:
+                    break
+        def get_image(self, image_path):
+            """Get a processed image either from the cache, queue or by processing it now"""
+            # First check our in-memory cache
+            if image_path in self.processed_images:
+                return image_path, self.processed_images[image_path]
+            
+            # Then check if this image is already in the queue
+            temp_queue = []
+            found = False
+            found_data = None
+            
+            # Search through the queue
+            while not self.image_queue.empty() and not found:
+                try:
+                    path, img = self.image_queue.get_nowait()
+                    if path == image_path:
+                        # Found it!
+                        found = True
+                        found_data = img
+                        # Save to in-memory cache for future
+                        self.processed_images[path] = img
+                    else:
+                        # Store temporarily
+                        temp_queue.append((path, img))
+                except queue.Empty:
+                    break
+            
+            # Put everything back in the queue
+            for item in temp_queue:
+                try:
+                    self.image_queue.put(item)
+                except queue.Full:
+                    # Queue is full, save to in-memory cache at least
+                    self.processed_images[item[0]] = item[1]
+            
+            # If we found it, return it
+            if found:
+                return image_path, found_data
+            
+            # If we didn't find it, process it now (blocking)
+            print(f"Processing image now (not preloaded): {image_path}")
+            path, img_data = blurry.process_image(
+                image_path,
+                self.max_width,
+                self.max_height,
+                use_cache=self.use_cache,
+                quality=self.quality
+            )
+            
+            # Add to in-memory cache
+            if img_data is not None:
+                self.processed_images[path] = img_data
+                
+            return path, img_data
+        def _process_images(self):
+            """Background thread that processes upcoming images in both current and next chunk"""
+            try:
+                # First, cache all images in the current chunk
+                current_chunk_processed = 0
+                next_chunk_processed = 0
+                
+                while self.running:
+                    # Process strategy:
+                    # 1. Process all remaining images in current chunk
+                    # 2. Process all images in next chunk
+                    # 3. If both are done, sleep briefly
+                    
+                    # First priority: process remaining images in current chunk
+                    unprocessed_current = [p for p in self.current_chunk if p not in self.processed_images]
+                    
+                    if unprocessed_current:
+                        img_path = unprocessed_current[0]
+                        # Prioritize NEF files
+                        if img_path.lower().endswith('.nef') or len([p for p in unprocessed_current if p.lower().endswith('.nef')]) == 0:
+                            try:
+                                # Process the image if not in memory cache already
+                                if img_path not in self.processed_images:
+                                    print(f"Preloading current chunk image: {os.path.basename(img_path)}")
+                                    path, img_data = blurry.process_image(
+                                        img_path,
+                                        self.max_width,
+                                        self.max_height,
+                                        use_cache=self.use_cache, 
+                                        quality=self.quality
+                                    )
+                                    
+                                    if img_data is not None:
+                                        # Store in in-memory cache
+                                        self.processed_images[path] = img_data
+                                        current_chunk_processed += 1
+                                        
+                                        # Also try to add to queue if there's room
+                                        try:
+                                            if not self.image_queue.full():
+                                                self.image_queue.put((path, img_data))
+                                        except:
+                                            pass  # Queue operations can fail, but we have the in-memory cache as backup
+                            except Exception as e:
+                                print(f"Error preloading image {img_path}: {e}")
+                    
+                    # Second priority: process next chunk
+                    elif self.next_chunk:
+                        unprocessed_next = [p for p in self.next_chunk if p not in self.processed_images]
+                        
+                        if unprocessed_next:
+                            img_path = unprocessed_next[0]
+                            # Prioritize NEF files
+                            if img_path.lower().endswith('.nef') or len([p for p in unprocessed_next if p.lower().endswith('.nef')]) == 0:
+                                try:
+                                    if img_path not in self.processed_images:
+                                        print(f"Preloading next chunk image: {os.path.basename(img_path)}")
+                                        path, img_data = blurry.process_image(
+                                            img_path,
+                                            self.max_width,
+                                            self.max_height,
+                                            use_cache=self.use_cache, 
+                                            quality=self.quality
+                                        )
+                                        
+                                        if img_data is not None:
+                                            # Store in in-memory cache
+                                            self.processed_images[path] = img_data
+                                            next_chunk_processed += 1
+                                except Exception as e:
+                                    print(f"Error preloading next chunk image {img_path}: {e}")
+                        else:
+                            # Done with next chunk
+                            if next_chunk_processed > 0:
+                                print(f"Finished preloading all {next_chunk_processed} images in next chunk")
+                                next_chunk_processed = 0  # Reset counter
+                    else:
+                        # Both chunks fully processed
+                        if current_chunk_processed > 0:
+                            print(f"Finished preloading all {current_chunk_processed} images in current chunk")
+                            current_chunk_processed = 0  # Reset counter
+                            
+                        # Nothing to do, sleep briefly
+                        time.sleep(0.5)
+            
+                    # Brief pause between images
+                    time.sleep(0.01)
+            except Exception as e:
+                print(f"Background processing error: {e}")    # Create a global instance of the background processor
+    background_processor = BackgroundProcessor(max_queue_size=50)
 
     if __name__ == "__main__":
     
         # Setting up the GUI
         root = tk.Tk()
         root.title(current_language["window_title"])
-        util.center_window(root, width=550, height=400)  # Increase width to accommodate longer text
+        util.center_window(root, width=500, height=450)  # Increase width to accommodate longer text
 
         # Configure the grid to center content horizontally
         root.columnconfigure(0, weight=3)  # More weight for the label column
@@ -406,7 +650,7 @@ try:
         chunk_size_label.grid(row=4, column=0, sticky="e", padx=5, pady=5)
         
         chunk_size_entry = tk.Entry(root, width=10)
-        chunk_size_entry.insert(0, "5")
+        chunk_size_entry.insert(0, "100")
         chunk_size_entry.grid(row=4, column=1, sticky="w", padx=5)
 
         # Max Width
@@ -433,17 +677,54 @@ try:
         move_duplicates_entry = tk.IntVar()
         move_duplicates_entry.set(False)
         duplicates_checkbox = tk.Checkbutton(checkbox_frame, text=current_language["delete_duplicates"], variable=move_duplicates_entry)
-        duplicates_checkbox.pack(anchor="w", pady=2)
-
-        # Recursive Search Checkbox
+        duplicates_checkbox.pack(anchor="w", pady=2)        # Recursive Search Checkbox
         recursive_search_entry = tk.IntVar()
         recursive_search_entry.set(True)
         recursive_checkbox = tk.Checkbutton(checkbox_frame, text=current_language["search_recursively"], variable=recursive_search_entry)
         recursive_checkbox.pack(anchor="w", pady=2)
+          # Add "Use Cache" checkbox - New feature for NEF optimization
+        use_cache_entry = tk.IntVar()
+        use_cache_entry.set(True)  # Default to using cache
+        # Add missing translation keys safely
+        try:
+            if "use_cache" not in current_language:
+                # These translations will be added at runtime
+                use_cache_en = "Use Cache (Faster)"
+                use_cache_da = "Brug cache (Hurtigere)"
+        except:
+            pass
+        cache_checkbox = tk.Checkbutton(checkbox_frame, text=current_language.get("use_cache", "Use Cache"), variable=use_cache_entry)
+        cache_checkbox.pack(anchor="w", pady=2)
+        
+        # Quality options in a separate frame - New feature for NEF optimization
+        quality_frame = tk.Frame(root)
+        quality_frame.grid(row=8, column=0, columnspan=3, sticky="w", padx=10, pady=5)
+        
+        # Define quality options with fallbacks
+        quality_label = tk.Label(quality_frame, text=current_language.get("image_quality", "Image Quality:"))
+        quality_label.pack(side=tk.LEFT, padx=(0, 10))
+        quality_label = tk.Label(quality_frame, text=current_language.get("image_quality", "Image Quality:"))
+        quality_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        quality_var = tk.StringVar()
+        quality_var.set("normal")  # Default to normal quality
+        
+        # Radio buttons for quality options
+        low_radio = tk.Radiobutton(quality_frame, text="Low (Fast)", 
+                                  variable=quality_var, value="low")
+        low_radio.pack(side=tk.LEFT, padx=5)
+        
+        normal_radio = tk.Radiobutton(quality_frame, text="Normal", 
+                                     variable=quality_var, value="normal")
+        normal_radio.pack(side=tk.LEFT, padx=5)
+        
+        high_radio = tk.Radiobutton(quality_frame, text="High (Best)", 
+                                   variable=quality_var, value="high")
+        high_radio.pack(side=tk.LEFT, padx=5)
 
         # Start Button
         start_button = tk.Button(root, text=current_language["start_processing"], command=start_processing)
-        start_button.grid(row=8, column=0, columnspan=3, pady=20)
+        start_button.grid(row=9, column=0, columnspan=3, pady=20)
         # Make the start button larger and more prominent
         start_button.config(height=2, width=20, bg="#d0f0d0", font=("Arial", 10, "bold"))
 
