@@ -1,5 +1,11 @@
 /img
+/pics
 /deleted_images
 /saved_images
 __pycache__
 imgDup
+dist
+build
+pics
+
+build.spec
