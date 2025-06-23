@@ -96,6 +96,7 @@ try:
             DANISH["status_deleted"] = "Slettet"
             DANISH["status_skipped"] = "Sprunget over"
             DANISH["status_history"] = "Historik: {count}/10"
+            
 
         # Helper function to determine image status based on path
         def get_image_status(img_path):
@@ -177,37 +178,36 @@ try:
                 )
                 
                 # Add history counter in top left when there's history
-                print(history)
-                if any(imagePath == path for path in history):
-                    history_text = current_language["status_history"].format(count=len(history))
+
+                history_text = current_language["status_history"].format(count=len(history))
+                status_image = canvas.put_text_utf8(
+                    status_image,
+                    history_text,
+                    position=(10, 30),
+                    font_size=16,
+                    color=(255, 255, 255),
+                    thickness=2,
+                    with_background=True
+                )
+                current_status = get_image_status(imagePath)
+                if current_status:
+                    # Use different colors based on status
+                    if current_status == current_language["status_saved"]:
+                        status_color = (0, 255, 0)  # Green for saved
+                    elif current_status == current_language["status_deleted"]:
+                        status_color = (0, 0, 255)  # Red for deleted
+                    else:
+                        status_color = (255, 255, 255)  # Yellow for skipped
+                    
                     status_image = canvas.put_text_utf8(
                         status_image,
-                        history_text,
-                        position=(10, 30),
+                        current_status,
+                        position=(max_width - 150, 30),
                         font_size=16,
-                        color=(255, 255, 255),
+                        color=status_color,
                         thickness=2,
                         with_background=True
                     )
-                    current_status = get_image_status(imagePath)
-                    if current_status:
-                        # Use different colors based on status
-                        if current_status == current_language["status_saved"]:
-                            status_color = (0, 255, 0)  # Green for saved
-                        elif current_status == current_language["status_deleted"]:
-                            status_color = (0, 0, 255)  # Red for deleted
-                        else:
-                            status_color = (255, 255, 0)  # Yellow for skipped
-                        
-                        status_image = canvas.put_text_utf8(
-                            status_image,
-                            current_status,
-                            position=(max_width - 150, 30),
-                            font_size=16,
-                            color=status_color,
-                            thickness=2,
-                            with_background=True
-                        )
 
                 # Display date info in bottom right corner
                 status_image = canvas.put_text_utf8(
