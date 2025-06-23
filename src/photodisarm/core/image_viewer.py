@@ -159,18 +159,19 @@ class ImageViewer:
             # Update background processor's current index for accurate prefetching
             background_processor.current_index = self.current_image_index - chunk_start
             
-            # Get image from background processor (it will process immediately if not preloaded)
+            # Get image from background processor (it will process immediately if not preloaded)            
             start_time = time.time()
             _, imageData = background_processor.get_image(imagePath)
             load_time = time.time() - start_time
-            
             if load_time < 0.1:
                 print(f"{localization.get_text('loaded_from_cache')} ({load_time:.3f}s)")
             else:
                 print(f"Image processed in {load_time:.3f}s")
             
             if imageData is None:
-                # Skip problematic images
+                # For problematic images, add to history but skip display
+                print(f"Warning: Skipping problematic image: {imagePath}")
+                self.history.append(imagePath)
                 self.current_image_index += 1
                 continue
             
@@ -180,7 +181,7 @@ class ImageViewer:
             
             # Handle keyboard input
             key = cv2.waitKeyEx(0)
-            print(key)
+            print(f"Key pressed: {key}")
             
             # Handle navigation and actions
             if key in (81, 2424832, 37, 65361):  # Left arrow key codes
@@ -195,8 +196,16 @@ class ImageViewer:
                 background_processor.stop()  # Stop background processing
                 cv2.destroyAllWindows()
                 return False
+            elif key in (83, 2555904, 39, 65363):  # Right arrow key codes
+                # Explicitly handle right arrow to move to next image
+                self.history.append(imagePath)
+                self.current_image_index += 1
+            elif key == 13:  # Enter key
+                # Enter key to move to next image
+                self.history.append(imagePath)
+                self.current_image_index += 1
             else:
-                # For any other key, store in history as skipped and move to next image
+                # For any other key, also move to next image (this is the default behavior)
                 self.history.append(imagePath)
                 self.current_image_index += 1
         
@@ -273,8 +282,7 @@ class ImageViewer:
             font_size=18,
             color=(255, 255, 255),
             thickness=2,
-            with_background=True
-        )
+            with_background=True        )
         
         return status_image
     
@@ -287,21 +295,30 @@ class ImageViewer:
         """
         if len(self.history) > 0:  # Only go back if history isn't empty
             prev_original_path = self.history.pop()
+            print(f"Going back to previous image: {prev_original_path}")
             
             # Update the current position to show the previous image
             try:
                 prev_index = self.image_paths.index(prev_original_path)
-                if prev_index < (self.current_image_index // self.chunk_size) * self.chunk_size:
+                print(f"Found previous image at index {prev_index}")
+                
+                # Check if we're crossing chunk boundaries
+                current_chunk_start = (self.current_image_index // self.chunk_size) * self.chunk_size
+                if prev_index < current_chunk_start:
                     # Need to go back to previous chunk
+                    print(f"Going back to previous chunk (current: {current_chunk_start}, target: {prev_index})")
                     self.current_image_index = prev_index
                     return True  # Signal to restart chunk processing
                 else:
-                    # Same chunk
+                    # Same chunk, just update the index
+                    print(f"Staying in same chunk, moving to index {prev_index}")
                     self.current_image_index = prev_index
             except ValueError:
-                # Image not found in list, just go back one
+                # Image not found in list (maybe it was moved/deleted), just go back one
+                print(f"Previous image not found in paths, going back one step")
                 if self.current_image_index > 0:
                     self.current_image_index -= 1
+                    print(f"Moved to index {self.current_image_index}")
         else:
             print("History limit reached, cannot go back further")
         

@@ -112,7 +112,6 @@ class BackgroundProcessor:
                 self.image_queue.get_nowait()
             except queue.Empty:
                 break
-    
     def get_image(self, image_path: str) -> Tuple[str, Optional[np.ndarray]]:
         """
         Get a processed image either from the cache, queue or by processing it now
@@ -123,8 +122,12 @@ class BackgroundProcessor:
         Returns:
             Tuple of (path, image_data)
         """
+        # Log the request for debugging purposes
+        print(f"Requesting image: {os.path.basename(image_path)}")
+        
         # First check our in-memory cache
         if image_path in self.processed_images:
+            print(f"Image found in memory cache: {os.path.basename(image_path)}")
             return image_path, self.processed_images[image_path]
         
         # Then check if this image is already in the queue
