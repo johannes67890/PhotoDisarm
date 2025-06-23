@@ -28,7 +28,7 @@ try:
         "delete_duplicates": "Delete Duplicates",
         "search_recursively": "Search Recursively",
         "start_processing": "Start Processing",
-        "switch_lang": "Skift til dansk",  # Change to Danish
+        "switch_lang": "Skift til dansk",  
         "error": "Error",
         "invalid_dir": "Invalid directory path!",
         "done": "Done!",
@@ -54,7 +54,7 @@ try:
         "delete_duplicates": "Slet dubletter",
         "search_recursively": "Søg rekursivt",
         "start_processing": "Start behandling",
-        "switch_lang": "Switch to English",  # Change to English
+        "switch_lang": "Switch to English",  
         "error": "Fejl",
         "invalid_dir": "Ugyldig mappesti!",
         "done": "Færdig!",
