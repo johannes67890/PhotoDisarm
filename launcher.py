@@ -86,6 +86,25 @@ try:
         total_images = len(image_paths)
         # Use deque with maxlen=10 to automatically limit history size
         history = deque(maxlen=10)
+        if "status_saved" not in current_language:
+            ENGLISH["status_saved"] = "Saved"
+            ENGLISH["status_deleted"] = "Deleted"
+            ENGLISH["status_skipped"] = "Skipped"
+            ENGLISH["status_history"] = "History: {count}/10"
+            
+            DANISH["status_saved"] = "Gemt"
+            DANISH["status_deleted"] = "Slettet"
+            DANISH["status_skipped"] = "Sprunget over"
+            DANISH["status_history"] = "Historik: {count}/10"
+
+        # Helper function to determine image status based on path
+        def get_image_status(img_path):
+            if output_dir and output_dir in img_path and "Deleted" not in img_path:
+                return current_language["status_saved"]
+            elif "Deleted" in img_path:
+                return current_language["status_deleted"]
+            else:
+                return current_language["status_skipped"]
 
         cv2.namedWindow(current_language["image_window"], cv2.WINDOW_NORMAL)
         cv2.resizeWindow(current_language["image_window"], max_width, max_height)
@@ -157,6 +176,39 @@ try:
                     with_background=True  # Add semi-transparent background
                 )
                 
+                # Add history counter in top left when there's history
+                print(history)
+                if any(imagePath == path for path in history):
+                    history_text = current_language["status_history"].format(count=len(history))
+                    status_image = canvas.put_text_utf8(
+                        status_image,
+                        history_text,
+                        position=(10, 30),
+                        font_size=16,
+                        color=(255, 255, 255),
+                        thickness=2,
+                        with_background=True
+                    )
+                    current_status = get_image_status(imagePath)
+                    if current_status:
+                        # Use different colors based on status
+                        if current_status == current_language["status_saved"]:
+                            status_color = (0, 255, 0)  # Green for saved
+                        elif current_status == current_language["status_deleted"]:
+                            status_color = (0, 0, 255)  # Red for deleted
+                        else:
+                            status_color = (255, 255, 0)  # Yellow for skipped
+                        
+                        status_image = canvas.put_text_utf8(
+                            status_image,
+                            current_status,
+                            position=(max_width - 150, 30),
+                            font_size=16,
+                            color=status_color,
+                            thickness=2,
+                            with_background=True
+                        )
+
                 # Display date info in bottom right corner
                 status_image = canvas.put_text_utf8(
                     status_image,
@@ -174,9 +226,8 @@ try:
                 print(key)
                 
                 if key in (81, 2424832, 37, 65361):  # Left arrow key codes
-                    print("back")
                     if len(history) > 0:  # Only go back if history isn't empty
-                        prev_image, prev_original_path = history.pop()
+                        prev_original_path = history.pop()
                         
                         # Update the current position to show the previous image
                         # We need to find the index of the previous image in image_paths
@@ -206,13 +257,13 @@ try:
                     
                 # Store current image in history before processing action
                 if key == 32:  # Space key
-                    history.append((imagePath, imagePath))
+                    history.append(imagePath)
                     new_path = util.move_image_to_dir_with_date(imagePath, output_dir)
                     # Update the path in the original list
                     image_paths[current_index] = new_path
                     current_chunk_index += 1
                 elif key == 8:  # Backspace key (delete)
-                    history.append((imagePath, imagePath))
+                    history.append(imagePath)
                     deleted_dir = os.path.join(output_dir, "Deleted") if output_dir else "Deleted"
                     os.makedirs(deleted_dir, exist_ok=True)
                     image_name = os.path.basename(imagePath)
@@ -225,7 +276,7 @@ try:
                     return
                 else:
                     # For any other key, store in history as skipped and move to next image
-                    history.append((imagePath, imagePath))
+                    history.append(imagePath)
                     current_chunk_index += 1
             
             # Move to the next chunk
