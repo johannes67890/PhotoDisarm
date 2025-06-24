@@ -17,68 +17,9 @@ try:
     from photodisarm.utils.util import center_window, sort_images_by_date, get_image_metadata_date, move_image_to_dir_with_date, get_images_rec, get_images
     from photodisarm.processing.duplicates import duplicates
     from photodisarm.processing.image import Image_processing
+    from photodisarm.i18n.localization import localization
     from photodisarm.processing.background import BackgroundProcessor
-    # Define language dictionaries for UI text    
-    ENGLISH = {
-        "window_title": "Image Processing Interface",
-        "input_dir": "Input Directory",
-        "output_dir": "Output Directory",
-        "browse": "Browse",
-        "threshold": "Threshold",
-        "chunk_size": "Chunk Size",
-        "max_width": "Max Width",
-        "max_height": "Max Height",
-        "delete_duplicates": "Delete Duplicates",
-        "search_recursively": "Search Recursively",
-        "start_processing": "Start Processing",
-        "switch_lang": "Skift til dansk",  
-        "error": "Error",
-        "invalid_dir": "Invalid directory path!",
-        "done": "Done!",
-        "all_processed": "All images processed!",
-        "image_window": "Image",
-        "loading_chunk": "Loading chunk",
-        "images": "images",
-        "sorted_by_date": "Sorted by date",
-        "processing_image": "Processing image",
-        "no_date": "*No Date Found*",
-        "keybindings": "Space: Save | Backspace: Delete | ← : Back | Any key: Skip",
-        "use_cache": "Use Cache (Faster)",        "image_quality": "Image Quality:",
-        "quality_low": "Low (Fast)",
-        "quality_normal": "Normal",
-        "quality_high": "High (Best)",
-        "preloading": "Preloading next images in background...",
-        "loaded_from_cache": "Image loaded from preload cache"
-    }
 
-    DANISH = {
-        "window_title": "Billedbehandlingsværktøj",
-        "input_dir": "Inputmappe",
-        "output_dir": "Outputmappe",
-        "browse": "Gennemse",
-        "threshold": "Tærskelværdi",
-        "chunk_size": "Gruppestørrelse",
-        "max_width": "Maks. bredde",
-        "max_height": "Maks. højde",
-        "delete_duplicates": "Slet dubletter",
-        "search_recursively": "Søg rekursivt",
-        "start_processing": "Start behandling",
-        "switch_lang": "Switch to English",  
-        "error": "Fejl",
-        "invalid_dir": "Ugyldig mappesti!",
-        "done": "Færdig!",
-        "all_processed": "Alle billeder er behandlet!",
-        "image_window": "Billede",
-        "loading_chunk": "Indlæser gruppe",
-        "images": "billeder",
-        "sorted_by_date": "Sorteret efter dato",
-        "processing_image": "Behandler billede",
-        "no_date": "*Ingen dato fundet*",
-        "keybindings": "Mellemrum: Gem | Backspace: Slet | ← : Tilbage | Enhver tast: Spring over"
-    }
-
-    # Global variable to track current language
-    current_language = DANISH
 
     async def process_images(image_paths: list, max_width: int, max_height: int, chunk_size: int = 50, output_dir: str = None, use_cache: bool = True, quality: str = 'normal'):
         """
@@ -95,29 +36,29 @@ try:
         total_images = len(image_paths)
         # Use deque with maxlen=10 to automatically limit history size
         history = deque(maxlen=10)
-        if "status_saved" not in current_language:
-            ENGLISH["status_saved"] = "Saved"
-            ENGLISH["status_deleted"] = "Deleted"
-            ENGLISH["status_skipped"] = ""
-            ENGLISH["status_history"] = "History: {count}/10"
-            
-            DANISH["status_saved"] = "Gemt"
-            DANISH["status_deleted"] = "Slettet"
-            DANISH["status_skipped"] = ""
-            DANISH["status_history"] = "Historik: {count}/10"
+  
             
 
         # Helper function to determine image status based on path
-        def get_image_status(img_path):
+        def get_image_status(img_path: str) -> str:
+            """
+            Get the status text for an image based on its path
+            
+            Args:
+                img_path: Path to the image file
+                
+            Returns:
+                Status text ('Saved', 'Deleted', or '')
+            """
             if output_dir and output_dir in img_path and "Deleted" not in img_path:
-                return current_language["status_saved"]
+                return localization.get_text("status_saved")
             elif "Deleted" in img_path:
-                return current_language["status_deleted"]
+                return localization.get_text("status_deleted")
             else:
-                return current_language["status_skipped"]
-
-        cv2.namedWindow(current_language["image_window"], cv2.WINDOW_NORMAL)
-        cv2.resizeWindow(current_language["image_window"], max_width, max_height)
+                return localization.get_text("status_skipped")
+            
+        cv2.namedWindow(localization.get_text("image_window"), cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(localization.get_text("image_window"), max_width, max_height)
           # Process images in chunks
         background_processor = BackgroundProcessor(max_queue_size=50)
         while index < total_images:
@@ -133,9 +74,6 @@ try:
             # Update the original list with the sorted chunk
             image_paths[index:chunk_end] = chunk_paths
             
-            # Load current chunk of images
-            print(f"{current_language['loading_chunk']} {index//chunk_size + 1}/{(total_images + chunk_size - 1)//chunk_size} ({chunk_end - index} {current_language['images']})")
-            print(f"{current_language['sorted_by_date']}: {', '.join([os.path.basename(p) for p in chunk_paths])}")
               # Start background processor for this chunk and prepare for next chunk
             background_processor.start(
                 chunk_paths,                   # Current chunk paths
@@ -155,7 +93,6 @@ try:
             while index + current_chunk_index < chunk_end:                
                 current_index = index + current_chunk_index
                 imagePath = image_paths[current_index]
-                print(f"{current_language['processing_image']} {current_index + 1}/{total_images}: {imagePath}")
                 
                 # Update background processor's current index for accurate prefetching
                 background_processor.current_index = current_chunk_index
@@ -180,10 +117,10 @@ try:
                 
                 # Try to get the image date
                 image_date = get_image_metadata_date(imagePath)
-                date_info = f"{image_date}" if image_date else current_language["no_date"]
+                date_info = f"{image_date}" if image_date else localization.get_text("no_date")
                 
                 # Display position info in bottom left corner using custom UTF-8 text function
-                position_text = f"{current_language['image_window']} {current_index + 1}/{total_images}"
+                position_text = f"{localization.get_text('image_window')} {current_index + 1}/{total_images}"
                 status_image = put_text_utf8(
                     status_image,
                     position_text,
@@ -195,7 +132,7 @@ try:
                 )
                 
                 # Display keybindings in bottom middle
-                keybinding_text = current_language["keybindings"]
+                keybinding_text = localization.get_text("keybindings")
                 # Calculate the center position (roughly)
                 text_width = len(keybinding_text) * 7  # Rough estimate for font size 18
                 center_x = (max_width - text_width) // 2
@@ -213,13 +150,13 @@ try:
                 current_status = get_image_status(imagePath)
                 if current_status:
                     # Use different colors based on status
-                    if current_status == current_language["status_saved"]:
+                    if current_status == localization.get_text("status_saved"):
                         status_color = (0, 255, 0)  # Green for saved
-                    elif current_status == current_language["status_deleted"]:
-                        status_color = (0, 0, 255)  # Red for deleted
+                    elif current_status == localization.get_text("status_deleted"):
+                        status_color = (0, 0, 255)  # Red (BGR format) for deleted
                     else:
-                        status_color = (255, 255, 255)  # Yellow for skipped
-                    
+                        status_color = (255, 255, 255)  # White for skipped
+                            
                     status_image = put_text_utf8(
                         status_image,
                         current_status,
@@ -242,7 +179,7 @@ try:
                 )
             
             
-                cv2.imshow(current_language["image_window"], status_image)
+                cv2.imshow(localization.get_text("image_window"), status_image)
                 key = cv2.waitKeyEx(0)
                 print(key)
                 
@@ -305,34 +242,9 @@ try:
             index = chunk_end
           # All chunks processed
         background_processor.stop()  # Stop background processing
-        messagebox.showinfo(current_language["done"], current_language["all_processed"])
+        messagebox.showinfo(localization.get_text("done"), localization.get_text("all_processed"))
         cv2.destroyAllWindows()
 
-    def switch_language():
-        global current_language
-        
-        # Toggle between English and Danish
-        if current_language == ENGLISH:
-            current_language = DANISH
-        else:
-            current_language = ENGLISH
-            
-        # Update all UI text
-        root.title(current_language["window_title"])
-        
-        # Update all labels
-        input_dir_label.config(text=current_language["input_dir"])
-        output_dir_label.config(text=current_language["output_dir"])  # Add this line
-        browse_button.config(text=current_language["browse"])
-        output_browse_button.config(text=current_language["browse"])  # Add this line
-        threshold_label.config(text=current_language["threshold"])
-        chunk_size_label.config(text=current_language["chunk_size"])
-        width_label.config(text=current_language["max_width"])
-        height_label.config(text=current_language["max_height"])
-        duplicates_checkbox.config(text=current_language["delete_duplicates"])
-        recursive_checkbox.config(text=current_language["search_recursively"])
-        start_button.config(text=current_language["start_processing"])
-        language_button.config(text=current_language["switch_lang"])    # Update the start_processing function to pass the chunk size and quality options
     def start_processing():
         input_dir = input_path.get()
         output_dir = output_path.get()
@@ -346,7 +258,7 @@ try:
 
         # Rest of the function remains the same
         if not os.path.isdir(input_dir):
-            messagebox.showerror(current_language["error"], current_language["invalid_dir"])
+            messagebox.showerror(localization.get_text("error"), localization.get_text("invalid_dir"))
             return
 
         # Create output directory if it doesn't exist
@@ -377,7 +289,7 @@ try:
     
         # Setting up the GUI
         root = tk.Tk()
-        root.title(current_language["window_title"])
+        root.title(localization.get_text("window_title"))
         center_window(root, width=500, height=450)  # Increase width to accommodate longer text
 
         # Configure the grid to center content horizontally
@@ -386,7 +298,7 @@ try:
         root.columnconfigure(2, weight=1)  # For buttons
 
         # Language Button - Move to top left corner
-        language_button = tk.Button(root, text=current_language["switch_lang"], command=switch_language)
+        language_button = tk.Button(root, text=localization.get_text("switch_lang"), command=localization.switch_language)
         language_button.grid(row=0, column=0, sticky="nw", padx=10, pady=10)
         
         # Give the language button a distinctive color
@@ -394,7 +306,7 @@ try:
 
         # Input Directory - Moved down one row
         input_path = tk.StringVar()
-        input_dir_label = tk.Label(root, text=current_language["input_dir"], anchor="e", width=20)
+        input_dir_label = tk.Label(root, text=localization.get_text("input_dir"), anchor="e", width=20)
         input_dir_label.grid(row=1, column=0, sticky="e", padx=5, pady=5)
         
         input_entry = tk.Entry(root, textvariable=input_path, width=40)
@@ -404,14 +316,14 @@ try:
         # Browse button
         browse_button = tk.Button(
             root, 
-            text=current_language["browse"], 
+            text=localization.get_text("browse"), 
             command=lambda: input_path.set(filedialog.askdirectory(initialdir=os.getcwd()))
         )
         browse_button.grid(row=1, column=2, sticky="w", padx=5)
 
         # Add Output Directory - Using the next row
         output_path = tk.StringVar()
-        output_dir_label = tk.Label(root, text=current_language["output_dir"], anchor="e", width=20)
+        output_dir_label = tk.Label(root, text=localization.get_text("output_dir"), anchor="e", width=20)
         output_dir_label.grid(row=2, column=0, sticky="e", padx=5, pady=5)
         
         output_entry = tk.Entry(root, textvariable=output_path, width=40)
@@ -421,13 +333,13 @@ try:
         # Output Browse button
         output_browse_button = tk.Button(
             root, 
-            text=current_language["browse"], 
+            text=localization.get_text("browse"), 
             command=lambda: output_path.set(filedialog.askdirectory(initialdir=output_path.get()))
         )
         output_browse_button.grid(row=2, column=2, sticky="w", padx=5)
 
         # Threshold
-        threshold_label = tk.Label(root, text=current_language["threshold"], anchor="e", width=20)
+        threshold_label = tk.Label(root, text=localization.get_text("threshold"), anchor="e", width=20)
         threshold_label.grid(row=3, column=0, sticky="e", padx=5, pady=5)
         
         threshold_entry = tk.Entry(root, width=10)
@@ -435,7 +347,7 @@ try:
         threshold_entry.grid(row=3, column=1, sticky="w", padx=5)
 
         # Chunk Size
-        chunk_size_label = tk.Label(root, text=current_language["chunk_size"], anchor="e", width=20)
+        chunk_size_label = tk.Label(root, text=localization.get_text("chunk_size"), anchor="e", width=20)
         chunk_size_label.grid(row=4, column=0, sticky="e", padx=5, pady=5)
         
         chunk_size_entry = tk.Entry(root, width=10)
@@ -443,7 +355,7 @@ try:
         chunk_size_entry.grid(row=4, column=1, sticky="w", padx=5)
 
         # Max Width
-        width_label = tk.Label(root, text=current_language["max_width"], anchor="e", width=20)
+        width_label = tk.Label(root, text=localization.get_text("max_width"), anchor="e", width=20)
         width_label.grid(row=5, column=0, sticky="e", padx=5, pady=5)
         
         width_entry = tk.Entry(root, width=10)
@@ -451,7 +363,7 @@ try:
         width_entry.grid(row=5, column=1, sticky="w", padx=5)
 
         # Max Height
-        height_label = tk.Label(root, text=current_language["max_height"], anchor="e", width=20)
+        height_label = tk.Label(root, text=localization.get_text("max_height"), anchor="e", width=20)
         height_label.grid(row=6, column=0, sticky="e", padx=5, pady=5)
         
         height_entry = tk.Entry(root, width=10)
@@ -465,24 +377,17 @@ try:
         # Move Duplicates Checkbox
         move_duplicates_entry = tk.IntVar()
         move_duplicates_entry.set(False)
-        duplicates_checkbox = tk.Checkbutton(checkbox_frame, text=current_language["delete_duplicates"], variable=move_duplicates_entry)
+        duplicates_checkbox = tk.Checkbutton(checkbox_frame, text=localization.get_text("delete_duplicates"), variable=move_duplicates_entry)
         duplicates_checkbox.pack(anchor="w", pady=2)        # Recursive Search Checkbox
         recursive_search_entry = tk.IntVar()
         recursive_search_entry.set(True)
-        recursive_checkbox = tk.Checkbutton(checkbox_frame, text=current_language["search_recursively"], variable=recursive_search_entry)
+        recursive_checkbox = tk.Checkbutton(checkbox_frame, text=localization.get_text("search_recursively"), variable=recursive_search_entry)
         recursive_checkbox.pack(anchor="w", pady=2)
           # Add "Use Cache" checkbox - New feature for NEF optimization
         use_cache_entry = tk.IntVar()
         use_cache_entry.set(True)  # Default to using cache
         # Add missing translation keys safely
-        try:
-            if "use_cache" not in current_language:
-                # These translations will be added at runtime
-                use_cache_en = "Use Cache (Faster)"
-                use_cache_da = "Brug cache (Hurtigere)"
-        except:
-            pass
-        cache_checkbox = tk.Checkbutton(checkbox_frame, text=current_language.get("use_cache", "Use Cache"), variable=use_cache_entry)
+        cache_checkbox = tk.Checkbutton(checkbox_frame, text=localization.get_text("use_cache"), variable=use_cache_entry)
         cache_checkbox.pack(anchor="w", pady=2)
         
         # Quality options in a separate frame - New feature for NEF optimization
@@ -490,9 +395,7 @@ try:
         quality_frame.grid(row=8, column=0, columnspan=3, sticky="w", padx=10, pady=5)
         
         # Define quality options with fallbacks
-        quality_label = tk.Label(quality_frame, text=current_language.get("image_quality", "Image Quality:"))
-        quality_label.pack(side=tk.LEFT, padx=(0, 10))
-        quality_label = tk.Label(quality_frame, text=current_language.get("image_quality", "Image Quality:"))
+        quality_label = tk.Label(quality_frame, text=localization.get_text("image_quality"))
         quality_label.pack(side=tk.LEFT, padx=(0, 10))
         
         quality_var = tk.StringVar()
@@ -512,7 +415,7 @@ try:
         high_radio.pack(side=tk.LEFT, padx=5)
 
         # Start Button
-        start_button = tk.Button(root, text=current_language["start_processing"], command=start_processing)
+        start_button = tk.Button(root, text=localization.get_text("start_processing"), command=start_processing)
         start_button.grid(row=9, column=0, columnspan=3, pady=20)
         # Make the start button larger and more prominent
         start_button.config(height=2, width=20, bg="#d0f0d0", font=("Arial", 10, "bold"))
