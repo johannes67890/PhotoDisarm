@@ -11,6 +11,7 @@ import asyncio
 import threading
 import queue
 import time
+from photodisarm.processing.image import Image_processing
 class BackgroundProcessor:
     def __init__(self, max_queue_size=50):  # Increased queue size to handle full chunks
         self.image_queue = queue.Queue(maxsize=max_queue_size)
@@ -77,6 +78,7 @@ class BackgroundProcessor:
                 self.image_queue.get_nowait()
             except queue.Empty:
                 break
+
     def get_image(self, image_path):
         """Get a processed image either from the cache, queue or by processing it now"""
         # First check our in-memory cache
@@ -118,7 +120,7 @@ class BackgroundProcessor:
         
         # If we didn't find it, process it now (blocking)
         print(f"Processing image now (not preloaded): {image_path}")
-        path, img_data = process_image(
+        path, img_data = Image_processing.process_image(
             image_path,
             self.max_width,
             self.max_height,
@@ -155,7 +157,7 @@ class BackgroundProcessor:
                             # Process the image if not in memory cache already
                             if img_path not in self.processed_images:
                                 print(f"Preloading current chunk image: {os.path.basename(img_path)}")
-                                path, img_data = blurry.process_image(
+                                path, img_data = Image_processing.process_image(
                                     img_path,
                                     self.max_width,
                                     self.max_height,
@@ -188,7 +190,7 @@ class BackgroundProcessor:
                             try:
                                 if img_path not in self.processed_images:
                                     print(f"Preloading next chunk image: {os.path.basename(img_path)}")
-                                    path, img_data = blurry.process_image(
+                                    path, img_data = Image_processing.process_image(
                                         img_path,
                                         self.max_width,
                                         self.max_height,
