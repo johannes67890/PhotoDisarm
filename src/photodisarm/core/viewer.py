@@ -181,7 +181,7 @@ class ImageViewer:
                 )
                 
                 # Display keybindings in bottom middle
-                keybinding_text = f"{save_keybind.title()}: Save | {delete_keybind.title()}: Delete | ← : Back | → : Forward | Any key: Skip"
+                keybinding_text = f"{save_keybind.title()}: Gem | {delete_keybind.title()}: Slet | ← : Tilbage | → : Frem"
                 # Calculate the center position (roughly)
                 text_width = len(keybinding_text) * 7  # Rough estimate for font size 18
                 center_x = (max_width - text_width) // 2
