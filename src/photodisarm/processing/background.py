@@ -12,6 +12,7 @@ import threading
 import queue
 import time
 from photodisarm.processing.image import Image_processing
+
 class BackgroundProcessor:
     def __init__(self, max_queue_size=50):  # Increased queue size to handle full chunks
         self.image_queue = queue.Queue(maxsize=max_queue_size)

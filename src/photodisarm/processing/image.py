@@ -16,18 +16,24 @@ class Image_processing:
         self.CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache')
         os.makedirs(self.CACHE_DIR, exist_ok=True)
 
+    @staticmethod
     def variance_of_laplacian(image):
         return cv2.Laplacian(image, cv2.CV_64F).var()
 
-
-    def get_cache_path(self, file_path):
+    @staticmethod
+    def get_cache_path(file_path):
         """Generate a unique cache path based on file path and modification time"""
+        # Define cache directory as a static path
+        cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache')
+        os.makedirs(cache_dir, exist_ok=True)
+        
         file_stat = os.stat(file_path)
         hash_input = f"{file_path}_{file_stat.st_mtime}"
         file_hash = hashlib.md5(hash_input.encode()).hexdigest()
-        return os.path.join(self.CACHE_DIR, f"{file_hash}.pkl")
+        return os.path.join(cache_dir, f"{file_hash}.pkl")
 
 
+    @staticmethod
     def process_image(path:str, max_width, max_height, use_cache=True, quality='normal'):
         """
         Process an image file with optimizations for NEF files.
@@ -96,6 +102,7 @@ class Image_processing:
             print(f"Error processing {path}: {e}")
             return None, None
 
+    @staticmethod
     def process_images_parallel(image_paths, max_width, max_height, use_cache=True, quality='normal', max_workers=None):
         """
         Process multiple images in parallel using a process pool.
@@ -123,11 +130,13 @@ class Image_processing:
         # Filter out failed results
         return [result for result in results if result[1] is not None]
 
+    @staticmethod
     def process_image_wrapper(path, max_width, max_height, use_cache=True, quality='normal'):
         """Wrapper function for process_image to use with multiprocessing"""
         return Image_processing.process_image(path, max_width, max_height, use_cache, quality)
 
 
+    @staticmethod
     def detect_blurry_images(image_paths, threshold=100, max_workers=None):
         """
         Detect blurry images from a list of image paths.
