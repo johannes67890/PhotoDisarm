@@ -218,7 +218,10 @@ class ImageViewer:
                     
                     # Skip the rest of the processing for this loop
                     continue
-                    
+                elif key in (83, 2555904, 39, 65363): # Right arrow key codes
+                    # For any other key, store in history as skipped and move to next image
+                    history.append(imagePath)
+                    current_chunk_index += 1
                 # Store current image in history before processing action
                 if key == 32:  # Space key
                     history.append(imagePath)
@@ -240,10 +243,7 @@ class ImageViewer:
                         self.background_processor.stop()  # Stop background processing
                     cv2.destroyAllWindows()
                     return
-                else:
-                    # For any other key, store in history as skipped and move to next image
-                    history.append(imagePath)
-                    current_chunk_index += 1
+
             
             # Move to the next chunk
             index = chunk_end
