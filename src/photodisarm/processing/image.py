@@ -17,10 +17,6 @@ class Image_processing:
         os.makedirs(self.CACHE_DIR, exist_ok=True)
 
     @staticmethod
-    def variance_of_laplacian(image):
-        return cv2.Laplacian(image, cv2.CV_64F).var()
-
-    @staticmethod
     def get_cache_path(file_path):
         """Generate a unique cache path based on file path and modification time"""
         # Define cache directory as a static path
@@ -134,41 +130,3 @@ class Image_processing:
     def process_image_wrapper(path, max_width, max_height, use_cache=True, quality='normal'):
         """Wrapper function for process_image to use with multiprocessing"""
         return Image_processing.process_image(path, max_width, max_height, use_cache, quality)
-
-
-    @staticmethod
-    def detect_blurry_images(image_paths, threshold=100, max_workers=None):
-        """
-        Detect blurry images from a list of image paths.
-        
-        Args:
-            image_paths: List of image paths to check
-            threshold: Laplacian variance threshold below which an image is considered blurry
-            max_workers: Maximum number of worker processes
-        
-        Returns:
-            List of paths to images detected as blurry
-        """
-        if max_workers is None:
-            max_workers = max(1, cpu_count() - 1)  # Leave one CPU free
-        
-        # Process images at lower quality for blur detection
-        processed_images = Image_processing.process_images_parallel(
-            image_paths, 1024, 1024, use_cache=True, quality='low', max_workers=max_workers
-        )
-        
-        blurry_images = []
-        for path, image in processed_images:
-            # Convert to grayscale for Laplacian calculation
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            # Calculate variance of Laplacian
-            variance = Image_processing.variance_of_laplacian(gray)
-            # If variance is below threshold, image is considered blurry
-            if variance < threshold:
-                blurry_images.append(path)
-        
-        return blurry_images
-
-
-
-

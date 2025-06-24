@@ -26,7 +26,7 @@ class ImageViewer:
     def __init__(self):
         self.background_processor = None
         
-    async def process_images(self, image_paths: list, max_width: int, max_height: int, chunk_size: int = 50, output_dir: str = None, use_cache: bool = True, quality: str = 'normal'):
+    async def process_images(self, image_paths: list, max_width: int, max_height: int, chunk_size: int = 50, output_dir: str = None, use_cache: bool = True, quality: str = 'normal', save_keybind: str = 'space', delete_keybind: str = 'backspace'):
         """
         Process images in chunks to reduce memory usage.
         
@@ -38,11 +38,53 @@ class ImageViewer:
             output_dir: Directory for organized output files
             use_cache: Whether to use caching for image processing
             quality: Image quality setting ('low', 'normal', 'high')
+            save_keybind: Key binding for saving images (default: 'space')
+            delete_keybind: Key binding for deleting images (default: 'backspace')
         """
         index: int = 0
         total_images = len(image_paths)
         # Use deque with maxlen=10 to automatically limit history size
         history = deque(maxlen=10)
+        
+        # Key mapping function
+        def get_key_code(key_name: str) -> int:
+            """Map key names to OpenCV key codes"""
+            key_map = {
+                'space': 32,
+                'spacebar': 32,
+                'backspace': 8,
+                'delete': 8,
+                'enter': 13,
+                'return': 13,
+                'tab': 9,
+                'escape': 27,
+                'esc': 27,
+                'up': 2490368,
+                'down': 2621440,
+                'left': 2424832,
+                'right': 2555904,
+                'home': 2359296,
+                'end': 2293760,
+                'pageup': 2162688,
+                'pagedown': 2228224,
+                'insert': 2097152,
+                'f1': 7340032, 'f2': 7405568, 'f3': 7471104, 'f4': 7536640,
+                'f5': 7602176, 'f6': 7667712, 'f7': 7733248, 'f8': 7798784,
+                'f9': 7864320, 'f10': 7929856, 'f11': 7995392, 'f12': 8060928,
+                'a': ord('a'), 'b': ord('b'), 'c': ord('c'), 'd': ord('d'), 'e': ord('e'),
+                'f': ord('f'), 'g': ord('g'), 'h': ord('h'), 'i': ord('i'), 'j': ord('j'),
+                'k': ord('k'), 'l': ord('l'), 'm': ord('m'), 'n': ord('n'), 'o': ord('o'),
+                'p': ord('p'), 'q': ord('q'), 'r': ord('r'), 's': ord('s'), 't': ord('t'),
+                'u': ord('u'), 'v': ord('v'), 'w': ord('w'), 'x': ord('x'), 'y': ord('y'),
+                'z': ord('z'),
+                '0': ord('0'), '1': ord('1'), '2': ord('2'), '3': ord('3'), '4': ord('4'),
+                '5': ord('5'), '6': ord('6'), '7': ord('7'), '8': ord('8'), '9': ord('9')
+            }
+            return key_map.get(key_name.lower(), 32)  # Default to space if key not found
+        
+        # Get the key codes for save and delete actions
+        save_key_code = get_key_code(save_keybind)
+        delete_key_code = get_key_code(delete_keybind)
   
         # Helper function to determine image status based on path
         def get_image_status(img_path: str) -> str:
@@ -139,7 +181,7 @@ class ImageViewer:
                 )
                 
                 # Display keybindings in bottom middle
-                keybinding_text = localization.get_text("keybindings")
+                keybinding_text = f"{save_keybind.title()}: Gem | {delete_keybind.title()}: Slet | ← : Tilbage | → : Frem"
                 # Calculate the center position (roughly)
                 text_width = len(keybinding_text) * 7  # Rough estimate for font size 18
                 center_x = (max_width - text_width) // 2
@@ -218,15 +260,18 @@ class ImageViewer:
                     
                     # Skip the rest of the processing for this loop
                     continue
-                    
+                elif key in (83, 2555904, 39, 65363): # Right arrow key codes
+                    # For any other key, store in history as skipped and move to next image
+                    history.append(imagePath)
+                    current_chunk_index += 1
                 # Store current image in history before processing action
-                if key == 32:  # Space key
+                if key == save_key_code:  # Configurable save key
                     history.append(imagePath)
                     new_path = move_image_to_dir_with_date(imagePath, output_dir)
                     # Update the path in the original list
                     image_paths[current_index] = new_path
                     current_chunk_index += 1
-                elif key == 8:  # Backspace key (delete)
+                elif key == delete_key_code:  # Configurable delete key
                     history.append(imagePath)
                     deleted_dir = os.path.join(output_dir, "Deleted") if output_dir else "Deleted"
                     os.makedirs(deleted_dir, exist_ok=True)
@@ -240,10 +285,7 @@ class ImageViewer:
                         self.background_processor.stop()  # Stop background processing
                     cv2.destroyAllWindows()
                     return
-                else:
-                    # For any other key, store in history as skipped and move to next image
-                    history.append(imagePath)
-                    current_chunk_index += 1
+
             
             # Move to the next chunk
             index = chunk_end
@@ -256,7 +298,8 @@ class ImageViewer:
 
     def start_processing(self, input_dir: str, output_dir: str, max_width: int, max_height: int, 
                         move_duplicates: bool, recursive: bool, chunk_size: int, 
-                        use_cache: bool = True, quality: str = 'normal'):
+                        use_cache: bool = True, quality: str = 'normal',
+                        save_keybind: str = 'space', delete_keybind: str = 'backspace'):
         """
         Start the image processing workflow.
         
@@ -270,6 +313,8 @@ class ImageViewer:
             chunk_size: Number of images to process in each chunk
             use_cache: Whether to use caching
             quality: Image quality setting
+            save_keybind: Key binding for saving images (default: 'space')
+            delete_keybind: Key binding for deleting images (default: 'backspace')
         """
         if not os.path.isdir(input_dir):
             messagebox.showerror(localization.get_text("error"), localization.get_text("invalid_dir"))
@@ -298,4 +343,4 @@ class ImageViewer:
         print(f"Image quality: {quality}, Cache enabled: {use_cache}")
         
         # Pass all parameters to process_images
-        asyncio.run(self.process_images(image_paths, max_width, max_height, chunk_size, output_dir, use_cache, quality))
+        asyncio.run(self.process_images(image_paths, max_width, max_height, chunk_size, output_dir, use_cache, quality, save_keybind, delete_keybind))
