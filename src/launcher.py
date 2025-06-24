@@ -13,11 +13,10 @@ try:
     import queue
     import time
     # Import your other modules
-    import photodisarm.dub as dub
-    import photodisarm.canvas as canvas
-    import photodisarm.blurry as blurry
-    import photodisarm.util as util
-
+    from photodisarm.ui.canvas import display_message, put_text_utf8, resize_image
+    from photodisarm.utils.util import center_window, sort_images_by_date, get_image_metadata_date, move_image_to_dir_with_date, get_images_rec, get_images
+    from photodisarm.processing.duplicates import duplicates
+    from photodisarm.processing.image import Image_processing
     # Define language dictionaries for UI text    
     ENGLISH = {
         "window_title": "Image Processing Interface",
@@ -127,7 +126,7 @@ try:
             chunk_paths = image_paths[index:chunk_end]
             
             # Sort this chunk by date
-            chunk_paths = util.sort_images_by_date(chunk_paths)
+            chunk_paths = sort_images_by_date(chunk_paths)
             
             # Update the original list with the sorted chunk
             image_paths[index:chunk_end] = chunk_paths
@@ -178,12 +177,12 @@ try:
                 status_image = imageData.copy()
                 
                 # Try to get the image date
-                image_date = util.get_image_metadata_date(imagePath)
+                image_date = get_image_metadata_date(imagePath)
                 date_info = f"{image_date}" if image_date else current_language["no_date"]
                 
                 # Display position info in bottom left corner using custom UTF-8 text function
                 position_text = f"{current_language['image_window']} {current_index + 1}/{total_images}"
-                status_image = canvas.put_text_utf8(
+                status_image = put_text_utf8(
                     status_image,
                     position_text,
                     position=(10, max_height - 30),
@@ -198,7 +197,7 @@ try:
                 # Calculate the center position (roughly)
                 text_width = len(keybinding_text) * 7  # Rough estimate for font size 18
                 center_x = (max_width - text_width) // 2
-                status_image = canvas.put_text_utf8(
+                status_image = put_text_utf8(
                     status_image,
                     keybinding_text,
                     position=(center_x, max_height - 30),
@@ -219,7 +218,7 @@ try:
                     else:
                         status_color = (255, 255, 255)  # Yellow for skipped
                     
-                    status_image = canvas.put_text_utf8(
+                    status_image = put_text_utf8(
                         status_image,
                         current_status,
                         position=(max_width - 150, 30),
@@ -230,7 +229,7 @@ try:
                     )
 
                 # Display date info in bottom right corner
-                status_image = canvas.put_text_utf8(
+                status_image = put_text_utf8(
                     status_image,
                     date_info,
                     position=(max_width - len(date_info) * 10 - 20, max_height - 30),
@@ -278,7 +277,7 @@ try:
                 # Store current image in history before processing action
                 if key == 32:  # Space key
                     history.append(imagePath)
-                    new_path = util.move_image_to_dir_with_date(imagePath, output_dir)
+                    new_path = move_image_to_dir_with_date(imagePath, output_dir)
                     # Update the path in the original list
                     image_paths[current_index] = new_path
                     current_chunk_index += 1
@@ -355,17 +354,17 @@ try:
         image_paths = []
         
         if recursive:
-            for chunk in util.get_images_rec(input_dir):
+            for chunk in get_images_rec(input_dir):
                 image_paths.extend(chunk)
         else:
-            for chunk in util.get_images(input_dir):
+            for chunk in get_images(input_dir):
                 image_paths.extend(chunk)
         
         print(f"Found {len(image_paths)} images")
         
         if move_duplicates:
             # Pass the output directory to add_with_progress
-            image_paths = dub.add_with_progress(image_paths, output_dir)
+            image_paths = duplicates.add_with_progress(image_paths, output_dir)
             
         print(f"Processing {len(image_paths)} images in chunks of {chunk_size}")
         print(f"Image quality: {quality}, Cache enabled: {use_cache}")
@@ -480,7 +479,7 @@ try:
             
             # If we didn't find it, process it now (blocking)
             print(f"Processing image now (not preloaded): {image_path}")
-            path, img_data = blurry.process_image(
+            path, img_data = Image_processing.process_image(
                 image_path,
                 self.max_width,
                 self.max_height,
@@ -517,7 +516,7 @@ try:
                                 # Process the image if not in memory cache already
                                 if img_path not in self.processed_images:
                                     print(f"Preloading current chunk image: {os.path.basename(img_path)}")
-                                    path, img_data = blurry.process_image(
+                                    path, img_data = Image_processing.process_image(
                                         img_path,
                                         self.max_width,
                                         self.max_height,
@@ -550,7 +549,7 @@ try:
                                 try:
                                     if img_path not in self.processed_images:
                                         print(f"Preloading next chunk image: {os.path.basename(img_path)}")
-                                        path, img_data = blurry.process_image(
+                                        path, img_data = Image_processing.process_image(
                                             img_path,
                                             self.max_width,
                                             self.max_height,
@@ -589,7 +588,7 @@ try:
         # Setting up the GUI
         root = tk.Tk()
         root.title(current_language["window_title"])
-        util.center_window(root, width=500, height=450)  # Increase width to accommodate longer text
+        center_window(root, width=500, height=450)  # Increase width to accommodate longer text
 
         # Configure the grid to center content horizontally
         root.columnconfigure(0, weight=3)  # More weight for the label column
