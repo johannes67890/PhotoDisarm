@@ -88,8 +88,11 @@ class Image_processing:
                     except Exception as e:
                         print(f"Failed to cache result for {path}: {e}")
             else:
-                # For non-NEF files, use standard OpenCV
-                image = cv2.imread(path)
+                # For non-NEF files, use Unicode-safe image loading
+                image = Image_processing._read_image_unicode_safe(path)
+                if image is None:
+                    print(f"Could not read image: {path}")
+                    return None, None
             
             # Resize for display
             resized_image = resize_image(image, max_width, max_height)
@@ -97,6 +100,31 @@ class Image_processing:
         except Exception as e:
             print(f"Error processing {path}: {e}")
             return None, None
+
+    @staticmethod
+    def _read_image_unicode_safe(path):
+        """
+        Read an image file in a Unicode-safe way that handles special characters.
+        
+        Args:
+            path: Path to the image file
+            
+        Returns:
+            OpenCV image array or None if failed
+        """
+        try:
+            # Method 1: Use numpy and cv2.imdecode for Unicode support
+            with open(path, 'rb') as f:
+                file_bytes = np.frombuffer(f.read(), np.uint8)
+            image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+            return image
+        except Exception as e:
+            print(f"Unicode-safe image reading failed for {path}: {e}")
+            try:
+                # Fallback: Try standard cv2.imread (might fail with Unicode)
+                return cv2.imread(path)
+            except:
+                return None
 
     @staticmethod
     def process_images_parallel(image_paths, max_width, max_height, use_cache=True, quality='normal', max_workers=None):
