@@ -180,13 +180,18 @@ class PhotoDisarmApp:
         self.recursive_search_entry.set(True)
         recursive_checkbox = tk.Checkbutton(checkbox_frame, text=localization.get_text("search_recursively"), variable=self.recursive_search_entry)
         recursive_checkbox.pack(anchor="w", pady=2)
-        
-        # Add "Use Cache" checkbox - New feature for NEF optimization
+          # Add "Use Cache" checkbox - New feature for NEF optimization
         self.use_cache_entry = tk.IntVar()
         self.use_cache_entry.set(True)  # Default to using cache
         # Add missing translation keys safely
         cache_checkbox = tk.Checkbutton(checkbox_frame, text=localization.get_text("use_cache"), variable=self.use_cache_entry)
         cache_checkbox.pack(anchor="w", pady=2)
+        
+        # Add "Sort by Date" checkbox - Selected by default
+        self.sort_by_date_entry = tk.IntVar()
+        self.sort_by_date_entry.set(True)  # Default to sorting by date
+        sort_by_date_checkbox = tk.Checkbutton(checkbox_frame, text=localization.get_text("sort_by_date"), variable=self.sort_by_date_entry)
+        sort_by_date_checkbox.pack(anchor="w", pady=2)
 
     def _create_quality_options(self):
         """Create quality selection options."""
@@ -238,6 +243,7 @@ class PhotoDisarmApp:
             recursive = bool(self.recursive_search_entry.get())
             chunk_size = int(self.chunk_size_entry.get())
             use_cache = bool(self.use_cache_entry.get())
+            sort_by_date = bool(self.sort_by_date_entry.get())
             quality = self.quality_var.get()
             save_keybind = self.save_keybind_entry.get().strip().lower()
             delete_keybind = self.delete_keybind_entry.get().strip().lower()
@@ -250,9 +256,7 @@ class PhotoDisarmApp:
             if not save_keybind:
                 save_keybind = "space"  # Default fallback
             if not delete_keybind:
-                delete_keybind = "backspace"  # Default fallback
-
-            # Start processing using the image viewer
+                delete_keybind = "backspace"  # Default fallback            # Start processing using the image viewer
             self.image_viewer.start_processing(
                 input_dir=input_dir,
                 output_dir=output_dir,
@@ -262,6 +266,7 @@ class PhotoDisarmApp:
                 recursive=recursive,
                 chunk_size=chunk_size,
                 use_cache=use_cache,
+                sort_by_date=sort_by_date,
                 quality=quality,
                 save_keybind=save_keybind,
                 delete_keybind=delete_keybind

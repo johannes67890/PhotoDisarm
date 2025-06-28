@@ -26,7 +26,7 @@ class ImageViewer:
     def __init__(self):
         self.background_processor = None
         
-    async def process_images(self, image_paths: list, max_width: int, max_height: int, chunk_size: int = 50, output_dir: str = None, use_cache: bool = True, quality: str = 'normal', save_keybind: str = 'space', delete_keybind: str = 'backspace'):
+    async def process_images(self, image_paths: list, max_width: int, max_height: int, chunk_size: int = 50, output_dir: str = None, use_cache: bool = True, quality: str = 'normal', save_keybind: str = 'space', delete_keybind: str = 'backspace', sort_by_date: bool = True):
         """
         Process images in chunks to reduce memory usage.
         
@@ -36,10 +36,10 @@ class ImageViewer:
             max_height: Maximum height for image display
             chunk_size: Number of images to load into memory at once
             output_dir: Directory for organized output files
-            use_cache: Whether to use caching for image processing
-            quality: Image quality setting ('low', 'normal', 'high')
+            use_cache: Whether to use caching for image processing            quality: Image quality setting ('low', 'normal', 'high')
             save_keybind: Key binding for saving images (default: 'space')
             delete_keybind: Key binding for deleting images (default: 'backspace')
+            sort_by_date: Whether images are already sorted by date globally
         """
         index: int = 0
         total_images = len(image_paths)
@@ -113,15 +113,14 @@ class ImageViewer:
         while index < total_images:
             # Calculate the end index for current chunk
             chunk_end = min(index + chunk_size, total_images)
-            
-            # Extract current chunk of image paths
+              # Extract current chunk of image paths
             chunk_paths = image_paths[index:chunk_end]
             
-            # Sort this chunk by date
-            chunk_paths = sort_images_by_date(chunk_paths)
-            
-            # Update the original list with the sorted chunk
-            image_paths[index:chunk_end] = chunk_paths
+            # Sort this chunk by date only if global sorting wasn't done
+            if not sort_by_date:
+                chunk_paths = sort_images_by_date(chunk_paths)
+                # Update the original list with the sorted chunk
+                image_paths[index:chunk_end] = chunk_paths
             
             # Start background processor for this chunk and prepare for next chunk
             self.background_processor.start(
@@ -292,13 +291,12 @@ class ImageViewer:
         
         # All chunks processed
         if self.background_processor:
-            self.background_processor.stop()  # Stop background processing
-        messagebox.showinfo(localization.get_text("done"), localization.get_text("all_processed"))
+            self.background_processor.stop()  # Stop background processing        messagebox.showinfo(localization.get_text("done"), localization.get_text("all_processed"))
         cv2.destroyAllWindows()
 
     def start_processing(self, input_dir: str, output_dir: str, max_width: int, max_height: int, 
                         move_duplicates: bool, recursive: bool, chunk_size: int, 
-                        use_cache: bool = True, quality: str = 'normal',
+                        use_cache: bool = True, sort_by_date: bool = True, quality: str = 'normal',
                         save_keybind: str = 'space', delete_keybind: str = 'backspace'):
         """
         Start the image processing workflow.
@@ -307,11 +305,11 @@ class ImageViewer:
             input_dir: Input directory path
             output_dir: Output directory path
             max_width: Maximum width for image display
-            max_height: Maximum height for image display
-            move_duplicates: Whether to move duplicate images
+            max_height: Maximum height for image display            move_duplicates: Whether to move duplicate images
             recursive: Whether to search recursively
             chunk_size: Number of images to process in each chunk
             use_cache: Whether to use caching
+            sort_by_date: Whether to sort all images by date before processing
             quality: Image quality setting
             save_keybind: Key binding for saving images (default: 'space')
             delete_keybind: Key binding for deleting images (default: 'backspace')
@@ -325,7 +323,6 @@ class ImageViewer:
             os.makedirs(output_dir, exist_ok=True)
 
         image_paths = []
-        
         if recursive:
             for chunk in get_images_rec(input_dir):
                 image_paths.extend(chunk)
@@ -335,12 +332,17 @@ class ImageViewer:
         
         print(f"Found {len(image_paths)} images")
         
+        # Sort all images by date if requested
+        if sort_by_date:
+            print("Sorting all images by date...")
+            image_paths = sort_images_by_date(image_paths)
+            print("Images sorted by date")
+        
         if move_duplicates:
             # Pass the output directory to add_with_progress
             image_paths = duplicates.add_with_progress(image_paths, output_dir)
             
         print(f"Processing {len(image_paths)} images in chunks of {chunk_size}")
         print(f"Image quality: {quality}, Cache enabled: {use_cache}")
-        
-        # Pass all parameters to process_images
-        asyncio.run(self.process_images(image_paths, max_width, max_height, chunk_size, output_dir, use_cache, quality, save_keybind, delete_keybind))
+          # Pass all parameters to process_images
+        asyncio.run(self.process_images(image_paths, max_width, max_height, chunk_size, output_dir, use_cache, quality, save_keybind, delete_keybind, sort_by_date))

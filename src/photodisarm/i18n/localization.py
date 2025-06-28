@@ -52,11 +52,11 @@ class LocalizationService:
             "options_settings": "Options",
             "quality_settings": "Image Quality Settings",
             "preloading": "Preloading next images in background...",
-            "loaded_from_cache": "Image loaded from preload cache",
-            "status_saved": "Saved",
+            "loaded_from_cache": "Image loaded from preload cache",            "status_saved": "Saved",
             "status_deleted": "Deleted",
             "status_skipped": "",
-            "status_history": "History: {count}/10"
+            "status_history": "History: {count}/10",
+            "sort_by_date": "Sort images by date before processing"
         },
         DANISH: {
             "window_title": "Billedbehandlingsværktøj",
@@ -95,11 +95,11 @@ class LocalizationService:
             "options_settings": "Indstillinger",
             "quality_settings": "Billedkvalitetsindstillinger",
             "preloading": "Forudindlæser næste billeder i baggrunden...",
-            "loaded_from_cache": "Billede indlæst fra forudindlæsningscache",
-            "status_saved": "Gemt",
+            "loaded_from_cache": "Billede indlæst fra forudindlæsningscache",            "status_saved": "Gemt",
             "status_deleted": "Slettet",
             "status_skipped": "",
-            "status_history": "Historik: {count}/10"
+            "status_history": "Historik: {count}/10",
+            "sort_by_date": "Sortér billeder efter dato før behandling"
         }
     }
     
