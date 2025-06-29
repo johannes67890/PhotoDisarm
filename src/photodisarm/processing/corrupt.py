@@ -41,15 +41,7 @@ class CorruptDetector:
                     rgb_image = raw.postprocess(use_camera_wb=True, half_size=True)
                     # If we get here, the file is readable
                     return True
-            else:
-                # Test regular image files with PIL and OpenCV
-                # First try PIL
-                with Image.open(image_path) as img:
-                    # Try to load the image data
-                    img.load()
-                    # Also verify it's a valid image format
-                    img.verify()
-                
+            else:                
                 # Then try OpenCV method for additional verification
                 with open(image_path, 'rb') as f:
                     file_bytes = np.frombuffer(f.read(), np.uint8)
