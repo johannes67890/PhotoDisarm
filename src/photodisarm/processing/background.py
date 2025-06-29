@@ -154,7 +154,7 @@ class BackgroundProcessor:
                     img_path = unprocessed_current[0]
                     # Prioritize NEF files
                     if img_path.lower().endswith('.nef') or len([p for p in unprocessed_current if p.lower().endswith('.nef')]) == 0:
-                        try:
+                        
                             # Process the image if not in memory cache already
                             if img_path not in self.processed_images:
                                 print(f"Preloading current chunk image: {os.path.basename(img_path)}")
@@ -177,8 +177,11 @@ class BackgroundProcessor:
                                             self.image_queue.put((path, img_data))
                                     except:
                                         pass  # Queue operations can fail, but we have the in-memory cache as backup
-                        except Exception as e:
-                            print(f"Error preloading image {img_path}: {e}")
+                                else:
+                                    print(f"Skipping current chunk image: {os.path.basename(img_path)}")
+                                    self.processed_images[img_path] = None
+                                    current_chunk_processed += 1
+
                 
                 # Second priority: process next chunk
                 elif self.next_chunk:
@@ -188,7 +191,6 @@ class BackgroundProcessor:
                         img_path = unprocessed_next[0]
                         # Prioritize NEF files
                         if img_path.lower().endswith('.nef') or len([p for p in unprocessed_next if p.lower().endswith('.nef')]) == 0:
-                            try:
                                 if img_path not in self.processed_images:
                                     print(f"Preloading next chunk image: {os.path.basename(img_path)}")
                                     path, img_data = Image_processing.process_image(
@@ -203,8 +205,10 @@ class BackgroundProcessor:
                                         # Store in in-memory cache
                                         self.processed_images[path] = img_data
                                         next_chunk_processed += 1
-                            except Exception as e:
-                                print(f"Error preloading next chunk image {img_path}: {e}")
+                                    else:
+                                        print(f"Error, Skipping next chunk image: {os.path.basename(img_path)}")
+                                        self.processed_images[path] = None
+                                        next_chunk_processed += 1
                     else:
                         # Done with next chunk
                         if next_chunk_processed > 0:

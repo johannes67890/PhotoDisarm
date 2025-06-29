@@ -15,6 +15,7 @@ from tkinter import messagebox
 from ..ui.canvas import display_message, put_text_utf8, resize_image
 from ..utils.util import center_window, sort_images_by_date, get_image_metadata_date, move_image_to_dir_with_date, get_images_rec, get_images
 from ..processing.duplicates import duplicates
+from ..processing.corrupt import CorruptDetector
 from ..processing.image import Image_processing
 from ..i18n.localization import localization
 from ..processing.background import BackgroundProcessor
@@ -53,7 +54,7 @@ class ImageViewer:
                 'space': 32,
                 'spacebar': 32,
                 'backspace': 8,
-                'delete': 8,
+                'delete': 3014656,
                 'enter': 13,
                 'return': 13,
                 'tab': 9,
@@ -288,16 +289,17 @@ class ImageViewer:
             
             # Move to the next chunk
             index = chunk_end
-        
-        # All chunks processed
+          # All chunks processed
         if self.background_processor:
-            self.background_processor.stop()  # Stop background processing        messagebox.showinfo(localization.get_text("done"), localization.get_text("all_processed"))
+            self.background_processor.stop()  # Stop background processing
+        messagebox.showinfo(localization.get_text("done"), localization.get_text("all_processed"))
         cv2.destroyAllWindows()
 
     def start_processing(self, input_dir: str, output_dir: str, max_width: int, max_height: int, 
                         move_duplicates: bool, recursive: bool, chunk_size: int, 
                         use_cache: bool = True, sort_by_date: bool = True, quality: str = 'normal',
-                        save_keybind: str = 'space', delete_keybind: str = 'backspace'):
+                        save_keybind: str = 'space', delete_keybind: str = 'backspace', 
+                        detect_corrupt: bool = False):
         """
         Start the image processing workflow.
         
@@ -309,20 +311,19 @@ class ImageViewer:
             recursive: Whether to search recursively
             chunk_size: Number of images to process in each chunk
             use_cache: Whether to use caching
-            sort_by_date: Whether to sort all images by date before processing
-            quality: Image quality setting
+            sort_by_date: Whether to sort all images by date before processing            quality: Image quality setting
             save_keybind: Key binding for saving images (default: 'space')
             delete_keybind: Key binding for deleting images (default: 'backspace')
+            detect_corrupt: Whether to detect and move corrupt images before processing
         """
         if not os.path.isdir(input_dir):
             messagebox.showerror(localization.get_text("error"), localization.get_text("invalid_dir"))
             return
 
+        image_paths = []
         # Create output directory if it doesn't exist
         if not os.path.exists(output_dir):
-            os.makedirs(output_dir, exist_ok=True)
-
-        image_paths = []
+            os.makedirs(output_dir, exist_ok=True)        
         if recursive:
             for chunk in get_images_rec(input_dir):
                 image_paths.extend(chunk)
@@ -331,6 +332,12 @@ class ImageViewer:
                 image_paths.extend(chunk)
         
         print(f"Found {len(image_paths)} images")
+        
+        # Detect and move corrupt images if requested
+        if detect_corrupt:
+            print("Detecting corrupt images...")
+            image_paths = CorruptDetector.scan_for_corrupt_images(image_paths, output_dir)
+            print(f"After corruption check: {len(image_paths)} valid images remaining")
         
         # Sort all images by date if requested
         if sort_by_date:
