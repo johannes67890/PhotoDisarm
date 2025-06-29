@@ -22,7 +22,7 @@ class PhotoDisarmApp:
         # Setting up the GUI
         self.root = tk.Tk()
         self.root.title(localization.get_text("window_title"))
-        center_window(self.root, width=600, height=650)  # Increased height for keybind fields, helper text, and default note
+        center_window(self.root, width=600, height=675)  # Increased height for keybind fields, helper text, and default note
 
         # Configure the grid to center content horizontally
         self.root.columnconfigure(0, weight=3)  # More weight for the label column
@@ -174,6 +174,12 @@ class PhotoDisarmApp:
         self.move_duplicates_entry.set(False)
         duplicates_checkbox = tk.Checkbutton(checkbox_frame, text=localization.get_text("delete_duplicates"), variable=self.move_duplicates_entry)
         duplicates_checkbox.pack(anchor="w", pady=2)
+
+        # Add "Detect Corrupt Images" checkbox
+        self.detect_corrupt_entry = tk.IntVar()
+        self.detect_corrupt_entry.set(False)  # Default to not detecting corrupt images
+        corrupt_checkbox = tk.Checkbutton(checkbox_frame, text=localization.get_text("detect_corrupt"), variable=self.detect_corrupt_entry)
+        corrupt_checkbox.pack(anchor="w", pady=2)
         
         # Recursive Search Checkbox
         self.recursive_search_entry = tk.IntVar()
@@ -186,12 +192,13 @@ class PhotoDisarmApp:
         # Add missing translation keys safely
         cache_checkbox = tk.Checkbutton(checkbox_frame, text=localization.get_text("use_cache"), variable=self.use_cache_entry)
         cache_checkbox.pack(anchor="w", pady=2)
-        
-        # Add "Sort by Date" checkbox - Selected by default
+          # Add "Sort by Date" checkbox - Selected by default
         self.sort_by_date_entry = tk.IntVar()
         self.sort_by_date_entry.set(True)  # Default to sorting by date
         sort_by_date_checkbox = tk.Checkbutton(checkbox_frame, text=localization.get_text("sort_by_date"), variable=self.sort_by_date_entry)
         sort_by_date_checkbox.pack(anchor="w", pady=2)
+        
+
 
     def _create_quality_options(self):
         """Create quality selection options."""
@@ -247,6 +254,7 @@ class PhotoDisarmApp:
             quality = self.quality_var.get()
             save_keybind = self.save_keybind_entry.get().strip().lower()
             delete_keybind = self.delete_keybind_entry.get().strip().lower()
+            detect_corrupt = bool(self.detect_corrupt_entry.get())
             
             # Validate keybinds
             if save_keybind == delete_keybind:
@@ -256,7 +264,8 @@ class PhotoDisarmApp:
             if not save_keybind:
                 save_keybind = "space"  # Default fallback
             if not delete_keybind:
-                delete_keybind = "backspace"  # Default fallback            # Start processing using the image viewer
+                delete_keybind = "backspace"  # Default fallback
+            # Start processing using the image viewer
             self.image_viewer.start_processing(
                 input_dir=input_dir,
                 output_dir=output_dir,
@@ -269,7 +278,8 @@ class PhotoDisarmApp:
                 sort_by_date=sort_by_date,
                 quality=quality,
                 save_keybind=save_keybind,
-                delete_keybind=delete_keybind
+                delete_keybind=delete_keybind,
+                detect_corrupt=detect_corrupt
             )
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred during processing: {str(e)}")

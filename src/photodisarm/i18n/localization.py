@@ -53,10 +53,10 @@ class LocalizationService:
             "quality_settings": "Image Quality Settings",
             "preloading": "Preloading next images in background...",
             "loaded_from_cache": "Image loaded from preload cache",            "status_saved": "Saved",
-            "status_deleted": "Deleted",
-            "status_skipped": "",
+            "status_deleted": "Deleted",            "status_skipped": "",
             "status_history": "History: {count}/10",
-            "sort_by_date": "Sort images by date before processing"
+            "sort_by_date": "Sort images by date before processing",
+            "detect_corrupt": "Detect and move corrupt images"
         },
         DANISH: {
             "window_title": "Billedbehandlingsværktøj",
@@ -96,10 +96,10 @@ class LocalizationService:
             "quality_settings": "Billedkvalitetsindstillinger",
             "preloading": "Forudindlæser næste billeder i baggrunden...",
             "loaded_from_cache": "Billede indlæst fra forudindlæsningscache",            "status_saved": "Gemt",
-            "status_deleted": "Slettet",
-            "status_skipped": "",
+            "status_deleted": "Slettet",            "status_skipped": "",
             "status_history": "Historik: {count}/10",
-            "sort_by_date": "Sortér billeder efter dato før behandling"
+            "sort_by_date": "Sortér billeder efter dato før behandling",
+            "detect_corrupt": "Find og flyt korrupte billeder"
         }
     }
     
@@ -128,6 +128,33 @@ class LocalizationService:
             "duplicates": "Dubletter: {count}",
             "complete": "Behandling fuldført",
             "complete_message": "{count} dubletter fundet og flyttet til {directory}"
+        }    }
+    
+    # Corruption detection translations
+    _corruption_texts = {
+        ENGLISH: {
+            "title": "Processing Corrupt Images",
+            "checking": "Checking & moving corrupt images...",
+            "scanning": "Scanning for images...",
+            "processing": "Processing images...",
+            "processing_chunk": "Processing chunk {chunk_num}...",
+            "elapsed_time": "Elapsed Time: {seconds}s",
+            "processed": "Processed: {count}",
+            "corrupted": "Corrupted: {count}",
+            "complete": "Processing Complete",
+            "complete_message": "{count} corrupt images found and moved to {directory}"
+        },
+        DANISH: {
+            "title": "Behandler korrupte billeder",
+            "checking": "Kontrollerer og flytter korrupte billeder...",
+            "scanning": "Scanner efter billeder...",
+            "processing": "Behandler billeder...",
+            "processing_chunk": "Behandler gruppe {chunk_num}...",
+            "elapsed_time": "Forløbet tid: {seconds}s",
+            "processed": "Behandlet: {count}",
+            "corrupted": "Korrupte: {count}",
+            "complete": "Behandling fuldført",
+            "complete_message": "{count} korrupte billeder fundet og flyttet til {directory}"
         }
     }
     
@@ -156,6 +183,11 @@ class LocalizationService:
     def current_duplicate_texts(self) -> Dict[str, str]:
         """Get the current duplicate texts dictionary"""
         return self._duplicate_texts[self._current_language_code]
+    
+    @property
+    def current_corruption_texts(self) -> Dict[str, str]:
+        """Get the current corruption texts dictionary"""
+        return self._corruption_texts[self._current_language_code]
     
     def get_text(self, key: str, default: str = None) -> str:
         """
